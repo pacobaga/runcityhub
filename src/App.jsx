@@ -9,9 +9,10 @@ import {
 // --- FIREBASE IMPORTS ---
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc, getDocs } from 'firebase/firestore';
 
 // --- CONFIGURACIÓN DE FIREBASE ---
+// RECUERDA: Pega tus llaves reales aquí
 const firebaseConfig = {
   apiKey: "AIzaSyCZIaz2nRIarTQ0ZHWadqBFUTwpG9H_j6s",
   authDomain: "city-run-hub.firebaseapp.com",
@@ -27,7 +28,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const FIREBASE_APP_ID = 'city-run-hub-prod';
 
-// --- DATOS MAESTROS (FALLBACK) ---
+// --- DATOS MAESTROS ---
 const HARDCODED_CITIES = [{ id: 'default-cdmx', name: 'CDMX' }];
 const HARDCODED_ZONES = [
   "POLANCO", "ROMA", "CONDESA", "CHAPULTEPEC I", "CHAPULTEPEC II", 
@@ -80,7 +81,6 @@ const AdminPanel = ({ user, onClose }) => {
     const { id, ...data } = club;
     await setDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs', id), { ...data, status: 'active' });
     await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs_pending', id));
-    alert("Entidad autorizada.");
   };
 
   const handleToggleEvent = async (ev) => {
@@ -91,12 +91,12 @@ const AdminPanel = ({ user, onClose }) => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-left font-black">
       <nav className="bg-petrol text-white p-6 flex flex-col md:flex-row justify-between items-center shadow-2xl px-12 gap-6 sticky top-0 z-50">
-        <h2 className="text-3xl font-black uppercase italic tracking-tighter">CENTRO DE <span className="text-mustard">MANDOS</span></h2>
+        <h2 className="text-2xl font-black uppercase italic tracking-tighter">CENTRO DE <span className="text-mustard">MANDOS</span></h2>
         <div className="flex flex-wrap justify-center gap-4">
-          <button onClick={() => setActiveTab('requests')} className={`px-6 py-2 rounded-full text-[10px] uppercase tracking-widest ${activeTab === 'requests' ? 'bg-mustard text-petrol shadow-lg' : 'bg-white/10'}`}>Solicitudes ({pendingClubs.length})</button>
-          <button onClick={() => setActiveTab('manage_events')} className={`px-6 py-2 rounded-full text-[10px] uppercase tracking-widest ${activeTab === 'manage_events' ? 'bg-mustard text-petrol shadow-lg' : 'bg-white/10'}`}>Gestionar Sesiones</button>
-          <button onClick={() => setActiveTab('manual_reg')} className={`px-6 py-2 rounded-full text-[10px] uppercase tracking-widest ${activeTab === 'manual_reg' ? 'bg-mustard text-petrol shadow-lg' : 'bg-white/10'}`}>Registro Manual</button>
-          <button onClick={onClose} className="px-8 py-2 bg-red-500 text-white rounded-full text-[10px] uppercase tracking-widest">Cerrar</button>
+          <button onClick={() => setActiveTab('requests')} className={`px-5 py-2 rounded-full text-[10px] uppercase transition-all ${activeTab === 'requests' ? 'bg-mustard text-petrol shadow-lg' : 'bg-white/10'}`}>Solicitudes ({pendingClubs.length})</button>
+          <button onClick={() => setActiveTab('manage_events')} className={`px-5 py-2 rounded-full text-[10px] uppercase transition-all ${activeTab === 'manage_events' ? 'bg-mustard text-petrol shadow-lg' : 'bg-white/10'}`}>Gestionar Sesiones ({events.length})</button>
+          <button onClick={() => setActiveTab('manual_reg')} className={`px-5 py-2 rounded-full text-[10px] uppercase transition-all ${activeTab === 'manual_reg' ? 'bg-mustard text-petrol shadow-lg' : 'bg-white/10'}`}>Registro Manual</button>
+          <button onClick={onClose} className="px-8 py-2 bg-red-500 text-white rounded-full font-black text-[10px] uppercase">Cerrar</button>
         </div>
       </nav>
 
@@ -104,32 +104,32 @@ const AdminPanel = ({ user, onClose }) => {
         
         {activeTab === 'requests' && (
           <div className="grid gap-6">
-            <h3 className="text-2xl font-black uppercase italic border-b-4 border-mustard pb-2 inline-block mb-6">Nuevos Registros</h3>
+            <h3 className="text-2xl font-black uppercase italic border-b-4 border-mustard pb-2 inline-block mb-6">Autorizaciones Pendientes</h3>
             {pendingClubs.map(c => (
-              <div key={c.id} className="bg-white p-8 rounded-5xl shadow-xl flex flex-col md:flex-row justify-between items-center border border-gray-100 gap-6">
+              <div key={c.id} className="bg-white p-8 rounded-5xl shadow-xl flex flex-col md:flex-row justify-between items-center border border-gray-100 gap-6 animate-in fade-in">
                 <div className="text-left w-full">
                   <span className="bg-turquoise text-white text-[8px] font-black px-3 py-1 rounded-full uppercase mb-2 inline-block">{c.type === 'club' ? 'RUNNING CLUB' : 'MARCA / NEGOCIO'}</span>
                   <h3 className="font-black text-xl uppercase italic text-petrol">{c.name}</h3>
                   <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">@{c.social} • {c.email}</p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-3 shrink-0">
                    <button onClick={async () => await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs_pending', c.id))} className="p-4 text-red-300 hover:text-red-500 bg-red-50 rounded-3xl"><Trash2 size={24}/></button>
-                   <button onClick={() => handleApproveClub(c)} className="bg-turquoise text-white px-8 py-4 rounded-4xl font-black text-xs uppercase italic shadow-lg">Autorizar</button>
+                   <button onClick={() => handleApproveClub(c)} className="bg-turquoise text-white px-8 py-4 rounded-4xl font-black text-xs uppercase italic shadow-lg">Aprobar Todo</button>
                 </div>
               </div>
             ))}
-            {pendingClubs.length === 0 && <p className="text-center py-20 text-gray-300 italic uppercase">Bandeja de entrada vacía</p>}
-        </div>
+            {pendingClubs.length === 0 && <p className="text-center py-20 text-gray-300 italic uppercase">Bandeja de entrada limpia</p>}
+          </div>
         )}
 
         {activeTab === 'manage_events' && (
           <div className="space-y-6">
-            <h3 className="text-2xl font-black uppercase italic border-b-4 border-mustard pb-2 inline-block">Control de Sesiones</h3>
-            <div className="grid gap-4">
+            <h3 className="text-2xl font-black uppercase italic border-b-4 border-mustard pb-2 inline-block mb-6">Control Total de Sesiones</h3>
+            <div className="grid gap-4 max-h-[70vh] overflow-y-auto no-scrollbar pr-4">
               {events.map(ev => (
-                <div key={ev.id} className={`bg-white p-6 rounded-[2.5rem] shadow-sm flex justify-between items-center border border-gray-100 ${ev.status === 'paused' ? 'opacity-50 grayscale' : ''}`}>
+                <div key={ev.id} className={`bg-white p-6 rounded-[2.5rem] shadow-sm flex justify-between items-center border border-gray-100 transition-all ${ev.status === 'paused' ? 'bg-gray-50 opacity-60' : ''}`}>
                   <div className="flex items-center gap-5">
-                    <div className="p-4 bg-gray-50 rounded-2xl text-petrol">
+                    <div className={`p-4 rounded-2xl ${ev.status === 'paused' ? 'bg-gray-200 text-gray-400' : 'bg-palemint text-turquoise'}`}>
                       {ev.isRecurring ? <CalendarDays size={20}/> : <Zap size={20}/>}
                     </div>
                     <div>
@@ -138,13 +138,14 @@ const AdminPanel = ({ user, onClose }) => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => handleToggleEvent(ev)} className={`p-3 rounded-2xl transition-all ${ev.status === 'paused' ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'}`}>
+                    <button onClick={() => handleToggleEvent(ev)} title={ev.status === 'paused' ? 'Activar' : 'Pausar'} className={`p-3 rounded-2xl transition-all ${ev.status === 'paused' ? 'bg-emerald-50 text-emerald-500 hover:bg-emerald-100' : 'bg-amber-50 text-amber-500 hover:bg-amber-100'}`}>
                       {ev.status === 'paused' ? <Play size={20}/> : <Pause size={20}/>}
                     </button>
-                    <button onClick={async () => { if(confirm("¿Borrar sesión?")) await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events', ev.id)) }} className="p-3 bg-red-50 text-red-300 hover:text-red-500 rounded-2xl"><Trash2 size={20}/></button>
+                    <button onClick={async () => { if(confirm("¿Borrar sesión permanentemente?")) await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events', ev.id)) }} className="p-3 bg-red-50 text-red-300 hover:text-red-500 rounded-2xl transition-all"><Trash2 size={20}/></button>
                   </div>
                 </div>
               ))}
+              {events.length === 0 && <p className="text-center py-10 text-gray-300 italic font-black uppercase">No hay sesiones en la base de datos</p>}
             </div>
           </div>
         )}
@@ -152,43 +153,44 @@ const AdminPanel = ({ user, onClose }) => {
         {activeTab === 'manual_reg' && (
           <div className="grid md:grid-cols-2 gap-12 text-left">
             <div className="bg-white p-10 rounded-6xl shadow-xl border border-gray-100">
-              <h3 className="text-xl font-black mb-6 uppercase italic text-petrol flex items-center gap-3"><PlusCircle className="text-mustard"/> Registro Directo</h3>
+              <h3 className="text-xl font-black mb-6 uppercase italic text-petrol flex items-center gap-3"><PlusCircle className="text-mustard"/> Registro Manual</h3>
               <form onSubmit={async (e) => {
                 e.preventDefault();
                 await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs'), { ...newClub, status: 'active', createdAt: new Date().toISOString() });
-                alert("Guardado en DB.");
+                alert("Guardado correctamente.");
                 setNewClub({ name: '', social: '', email: '', type: 'club', city: 'CDMX' });
               }} className="space-y-4">
-                <input required placeholder="Nombre" className="w-full p-4 bg-gray-50 rounded-2xl font-black" value={newClub.name} onChange={e => setNewClub({...newClub, name: e.target.value})} />
-                <input required placeholder="Instagram (@)" className="w-full p-4 bg-gray-50 rounded-2xl font-black" value={newClub.social} onChange={e => setNewClub({...newClub, social: e.target.value})} />
-                <select className="w-full p-4 bg-gray-50 rounded-2xl font-black" value={newClub.type} onChange={e => setNewClub({...newClub, type: e.target.value})}>
+                <input required placeholder="Nombre Oficial" className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none" value={newClub.name} onChange={e => setNewClub({...newClub, name: e.target.value})} />
+                <input required placeholder="Instagram (@)" className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none" value={newClub.social} onChange={e => setNewClub({...newClub, social: e.target.value})} />
+                <select className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none" value={newClub.type} onChange={e => setNewClub({...newClub, type: e.target.value})}>
                   <option value="club">Running Club</option>
                   <option value="business">Marca / Negocio</option>
+                  <option value="influencer">Influencer</option>
                 </select>
-                <button className="w-full bg-petrol text-mustard py-5 rounded-4xl font-black text-xs uppercase italic">Añadir a la Base de Datos</button>
+                <button className="w-full bg-petrol text-mustard py-5 rounded-4xl font-black text-xs uppercase italic shadow-xl hover:scale-105 transition-all">Registrar en DB</button>
               </form>
             </div>
 
             <div className="bg-white p-10 rounded-6xl shadow-xl border border-gray-100">
-               <h3 className="text-xl font-black mb-6 uppercase italic text-petrol flex items-center gap-3"><Zap className="text-turquoise"/> Evento Independiente</h3>
+               <h3 className="text-xl font-black mb-6 uppercase italic text-petrol flex items-center gap-3"><Zap className="text-turquoise"/> Sesión Hub Independiente</h3>
                <form onSubmit={async (e) => {
                  e.preventDefault();
                  await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events'), { ...indieEvent, status: 'active' });
-                 alert("Sesión publicada.");
+                 alert("Publicado.");
                  setIndieEvent({ organizerName: 'Run City Hub', day: 'Lunes', time: '07:00', zone: 'REFORMA', type: 'SR', location: '', isRecurring: true });
                }} className="space-y-4">
-                 <input required placeholder="Organizador (Ej. Run City Hub)" className="w-full p-4 bg-gray-50 rounded-2xl font-black" value={indieEvent.organizerName} onChange={e => setIndieEvent({...indieEvent, organizerName: e.target.value})} />
+                 <input required placeholder="Nombre de la Sesión" className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none" value={indieEvent.organizerName} onChange={e => setIndieEvent({...indieEvent, organizerName: e.target.value})} />
                  <div className="grid grid-cols-2 gap-2">
-                   <select className="p-4 bg-gray-50 rounded-2xl font-black" value={indieEvent.day} onChange={e => setIndieEvent({...indieEvent, day: e.target.value})}>
+                   <select className="p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs" value={indieEvent.day} onChange={e => setIndieEvent({...indieEvent, day: e.target.value})}>
                      {dayNames.map(d => <option key={d} value={d}>{d}</option>)}
                    </select>
-                   <input type="time" className="p-4 bg-gray-50 rounded-2xl font-black" value={indieEvent.time} onChange={e => setIndieEvent({...indieEvent, time: e.target.value})} />
+                   <input type="time" className="p-4 bg-gray-50 rounded-2xl font-black outline-none" value={indieEvent.time} onChange={e => setIndieEvent({...indieEvent, time: e.target.value})} />
                  </div>
-                 <select className="w-full p-4 bg-gray-50 rounded-2xl font-black" value={indieEvent.zone} onChange={e => setIndieEvent({...indieEvent, zone: e.target.value})}>
+                 <select className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none" value={indieEvent.zone} onChange={e => setIndieEvent({...indieEvent, zone: e.target.value})}>
                     {HARDCODED_ZONES.map(z => <option key={z} value={z}>{z}</option>)}
                  </select>
-                 <input required placeholder="Ubicación" className="w-full p-4 bg-gray-50 rounded-2xl font-black" value={indieEvent.location} onChange={e => setIndieEvent({...indieEvent, location: e.target.value})} />
-                 <button className="w-full bg-turquoise text-white py-5 rounded-4xl font-black text-xs uppercase italic">Publicar en Calendario</button>
+                 <input required placeholder="Punto de Encuentro" className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none shadow-inner" value={indieEvent.location} onChange={e => setIndieEvent({...indieEvent, location: e.target.value})} />
+                 <button className="w-full bg-turquoise text-white py-5 rounded-4xl font-black text-xs uppercase italic shadow-xl hover:scale-105 transition-all">Publicar en Calendario</button>
                </form>
             </div>
           </div>
@@ -214,7 +216,7 @@ const PublicApp = ({ user }) => {
   const [races, setRaces] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Formulario de registro (Marca / Club)
+  // Estados de Registro
   const [regType, setRegType] = useState('club');
   const [regEvent, setRegEvent] = useState({ isRecurring: true, day: 'Lunes', time: '07:00', zone: 'POLANCO', location: '' });
 
@@ -249,7 +251,7 @@ const PublicApp = ({ user }) => {
     });
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center font-black text-petrol uppercase tracking-[0.5em] animate-pulse italic">Cargando Hub...</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center font-black text-petrol uppercase tracking-[0.5em] animate-pulse italic">Iniciando Hub...</div>;
 
   return (
     <div className="min-h-screen bg-white text-petrol font-sans flex flex-col transition-all text-center font-black overflow-x-hidden">
@@ -258,25 +260,24 @@ const PublicApp = ({ user }) => {
       <header className="bg-white/95 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-[100] px-6 py-5 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center cursor-pointer group" onClick={() => setView('home')}>
-             <div className="w-11 h-11 md:w-14 md:h-14 bg-white rounded-2xl flex items-center justify-center mr-4 shadow-xl overflow-hidden border border-gray-100 logo-shadow group-hover:rotate-12 transition-transform font-black">
+             <div className="w-11 h-11 md:w-14 md:h-14 bg-white rounded-2xl flex items-center justify-center mr-4 shadow-xl overflow-hidden border border-gray-100 logo-shadow group-hover:rotate-12 transition-transform">
                <img src="/cityrunhublogo.png" className="w-full h-full object-contain p-1.5 font-black" alt="Logo" />
              </div>
-             <div className="text-xl md:text-3xl font-black tracking-tighter uppercase italic leading-none text-left tracking-tighter font-black">RUN CITY <span className="text-turquoise font-black italic">HUB</span></div>
+             <div className="text-xl md:text-3xl font-black tracking-tighter uppercase italic leading-none text-left tracking-tighter">RUN CITY <span className="text-turquoise font-black italic">HUB</span></div>
           </div>
 
-          <nav className="hidden lg:flex items-center gap-10 text-[11px] font-black uppercase tracking-[0.3em] text-gray-400 font-black font-black">
+          <nav className="hidden lg:flex items-center gap-10 text-[11px] font-black uppercase tracking-[0.3em] text-gray-400 font-black">
             <button onClick={() => setView('home')} className={view==='home'?'text-petrol':''}>Inicio</button>
             <button onClick={() => { setView('home'); setTimeout(() => document.getElementById('agenda')?.scrollIntoView({behavior:'smooth'}), 100); }}>Calendario</button>
             <button onClick={() => setView('races')} className={view==='races'?'text-petrol':''}>Carreras 2026</button>
             <button onClick={() => setView('clubs')} className={view==='clubs'?'text-petrol':''}>Clubes</button>
-            <button onClick={() => setView('register')} className={view==='register'?'text-petrol':''}>Soy Club / Marca</button>
+            <button onClick={() => setView('register')} className={view==='register'?'text-petrol':''}>Club / Marca</button>
             <div className="relative flex items-center bg-gray-50 rounded-xl px-4 py-2 font-black text-petrol border border-gray-100 shadow-inner group">
               <select className="bg-transparent outline-none appearance-none pr-8 cursor-pointer uppercase text-[10px] tracking-widest font-black" value={selectedCity} onChange={e => { setSelectedCity(e.target.value); setSelectedZone('Todos'); }}>
                 {HARDCODED_CITIES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-petrol font-black" size={14} />
             </div>
-            <button onClick={() => setView('register')} className="bg-petrol text-mustard px-10 py-3.5 rounded-full shadow-2xl hover:bg-turquoise hover:text-white transition-all font-black uppercase italic tracking-widest text-[12px] active:scale-95 font-black">Unirse</button>
           </nav>
 
           <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="lg:hidden p-3 bg-gray-50 rounded-2xl text-petrol font-black flex items-center gap-2 transition-all active:scale-90 shadow-sm font-black">
@@ -290,7 +291,7 @@ const PublicApp = ({ user }) => {
         <main className="animate-in fade-in duration-1000 flex-1 font-black text-left">
            <section className="max-w-7xl mx-auto px-6 pt-16 md:pt-32 pb-32 flex flex-col lg:flex-row items-center gap-20 text-center lg:text-left font-black">
               <div className="flex-1 font-black">
-                 <h1 className="hero-title mb-10 leading-[0.8] font-black italic tracking-tighter font-black">NO CORRAS <br /> SOLO, <br /><span className="text-turquoise font-black italic font-black">CORRE EN EQUIPO.</span></h1>
+                 <h1 className="hero-title mb-10 leading-[0.8] font-black italic tracking-tighter font-black">NO CORRAS <br /> SOLO, <br /><span className="text-turquoise font-black italic">CORRE EN EQUIPO.</span></h1>
                  <p className="text-xl md:text-2xl text-gray-400 font-medium italic mb-14 max-w-xl mx-auto lg:mx-0 leading-relaxed text-left font-black font-black">La plataforma definitiva para el corredor urbano.</p>
                  <div className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start font-black">
                     <button onClick={() => document.getElementById('agenda')?.scrollIntoView({behavior:'smooth'})} className="bg-petrol text-mustard px-16 py-7 rounded-6xl font-black text-2xl shadow-[0_35px_60px_-15px_rgba(27,67,83,0.3)] hover:scale-105 transition-all uppercase italic active:scale-95 font-black">Ver Calendario</button>
@@ -301,18 +302,7 @@ const PublicApp = ({ user }) => {
 
            <section id="agenda" className="max-w-7xl mx-auto px-6 py-32 border-t border-gray-100 text-center text-left font-black">
               <h2 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter mb-20 text-petrol leading-none font-black tracking-tighter font-black">AGENDA <span className="text-turquoise font-black italic font-black">SEMANAL</span></h2>
-              <div className="bg-white p-10 rounded-5xl border border-gray-100 shadow-sm mb-20 overflow-x-auto no-scrollbar font-black text-petrol">
-                <div className="flex items-center gap-12 min-w-max text-left font-black text-petrol">
-                   <div className="text-[11px] font-black uppercase tracking-[0.3em] border-r pr-10 border-gray-100 font-black tracking-widest font-black">Guía de Sesiones</div>
-                   {Object.entries(RUN_TYPES).map(([k,v]) => (
-                     <div key={k} className="flex items-center gap-4 font-black">
-                        <span className={`px-5 py-2 rounded-2xl border-2 font-black text-[10px] tracking-widest ${v.color} font-black`}>{k}</span>
-                        <div className="font-black text-left"><p className="text-[13px] font-black leading-none mb-1 text-petrol uppercase tracking-tighter font-black">{v.label}</p><p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight font-black">{v.desc}</p></div>
-                     </div>
-                   ))}
-                </div>
-              </div>
-
+              
               <div className="flex flex-col gap-12 mb-20 font-black text-center font-black">
                  <div className="flex flex-wrap gap-3 justify-center font-black font-black">
                     <button onClick={() => setSelectedZone('Todos')} className={`px-10 py-5 rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest transition-all ${selectedZone === 'Todos' ? 'bg-petrol text-mustard shadow-xl scale-105' : 'bg-gray-50 text-gray-400 hover:bg-gray-100 font-black font-black'} font-black font-black font-black`}>Todos</button>
@@ -339,7 +329,7 @@ const PublicApp = ({ user }) => {
                       <div className={`${sec.color} p-12 text-white flex justify-between items-center font-black font-black`}><h3 className="text-4xl font-black uppercase italic leading-none tracking-tighter font-black font-black font-black">{sec.t}</h3><span className="bg-white/10 px-8 py-3 rounded-full font-black text-[11px] uppercase tracking-[0.4em] backdrop-blur-md font-black font-black">{selectedCity}</span></div>
                       <div className="overflow-x-auto no-scrollbar font-black font-black">
                         <table className="w-full min-w-[1200px] border-collapse font-black font-black">
-                           <thead><tr className="bg-gray-50/50 text-[10px] font-black text-petrol uppercase border-b border-gray-100 font-black tracking-widest font-black font-black"><th className="p-12 text-left w-48 opacity-40 font-black font-black">Horario</th>{dayNames.map((d, i) => <th key={d} className="p-10 text-center font-black font-black uppercase font-black font-black">{d} <br/><span className="text-turquoise text-[10px] font-black font-black">{weekDates[i].getDate()} {weekDates[i].toLocaleString('es-MX', {month:'short'})}</span></th>)}</tr></thead>
+                           <thead><tr className="bg-gray-50/50 text-[10px] font-black text-gray-300 uppercase border-b border-gray-100 font-black tracking-widest font-black font-black"><th className="p-12 text-left w-48 opacity-40 font-black font-black">Horario</th>{dayNames.map((d, i) => <th key={d} className="p-10 text-center font-black font-black uppercase font-black font-black">{d} <br/><span className="text-turquoise text-[10px] font-black font-black">{weekDates[i].getDate()} {weekDates[i].toLocaleString('es-MX', {month:'short'})}</span></th>)}</tr></thead>
                            <tbody>
                               {sec.times.map(t => (
                                 <tr key={t} className="group font-black font-black font-black"><td className="p-12 text-sm font-black text-gray-300 border-b border-gray-50 font-black group-hover:text-petrol transition-colors font-black">{t}</td>{dayNames.map((d, i) => {
@@ -372,6 +362,7 @@ const PublicApp = ({ user }) => {
                  <button onClick={() => window.open(r.link)} className="bg-petrol text-mustard px-12 py-5 rounded-full font-black text-xs uppercase shadow-xl hover:scale-105 active:scale-95 italic font-black font-black font-black font-black font-black font-black font-black font-black">Inscribirme</button>
                </div>
              ))}
+             {races.length === 0 && <p className="text-center py-20 text-gray-300 font-black uppercase italic tracking-widest font-black">Buscando calendario...</p>}
            </div>
         </main>
       )}
@@ -382,12 +373,12 @@ const PublicApp = ({ user }) => {
            <h2 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter text-petrol mb-24 font-black leading-none font-black font-black font-black font-black font-black font-black font-black">DIRECTORIO <br/><span className="text-turquoise italic font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black">DE CLUBES.</span></h2>
            <div className="grid md:grid-cols-3 gap-12 font-black font-black font-black font-black">
              {clubs.filter(c => c.type === 'club').map(club => (
-               <div key={club.id} className="bg-white p-12 rounded-[5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all flex flex-col items-center font-black animate-in zoom-in font-black font-black font-black font-black font-black">
+               <div key={club.id} className="bg-white p-12 rounded-[5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all flex flex-col items-center font-black animate-in zoom-in h-full">
                  <img src={club.logoUrl || "https://via.placeholder.com/200"} className="w-36 h-36 rounded-full border-[10px] border-white shadow-2xl object-cover mb-10 font-black font-black font-black font-black font-black font-black" />
                  <h3 className="text-3xl font-black mb-2 uppercase italic text-petrol font-black font-black font-black font-black font-black font-black font-black">{club.name}</h3>
                  <p className="text-turquoise font-black uppercase text-[10px] mb-10 px-6 py-2 bg-palemint rounded-full font-black font-black font-black font-black font-black font-black font-black">{club.city} • {club.zone || 'Global'}</p>
                  <div className="mt-auto w-full">
-                    <button onClick={() => window.open(`https://instagram.com/${club.social}`)} className="bg-petrol text-mustard w-full py-5 rounded-4xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-3 hover:scale-105 italic font-black font-black font-black font-black font-black font-black font-black"><Instagram size={18}/> Ver Perfil</button>
+                    <button onClick={() => window.open(`https://instagram.com/${club.social}`)} className="bg-petrol text-mustard w-full py-5 rounded-4xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-3 hover:scale-105 italic font-black"><Instagram size={18}/> Ver Perfil</button>
                  </div>
                </div>
              ))}
@@ -451,21 +442,21 @@ const PublicApp = ({ user }) => {
       {/* FOOTER RENOVADO */}
       <footer className="bg-petrol text-white py-24 mt-auto rounded-t-6xl relative overflow-hidden px-8 text-center font-black shadow-[0_-50px_100px_-20px_rgba(27,67,83,0.1)]">
         <div className="absolute inset-0 bg-white/5 opacity-5 pointer-events-none"></div>
-        <div className="max-w-7xl mx-auto flex flex-col items-center gap-12 relative z-10 text-center font-black font-black font-black">
-           {/* LOGO TENUE REDUCIDO */}
-           <div className="w-32 md:w-48 opacity-10 select-none grayscale invert contrast-200">
-             <img src="/logo.png" className="w-full h-auto" alt="Background Logo" />
+        <div className="max-w-7xl mx-auto flex flex-col items-center gap-10 relative z-10 text-center font-black font-black font-black">
+           {/* LOGO REDUCIDO Y MENOS TENUE */}
+           <div className="w-24 md:w-32 opacity-20 select-none grayscale invert contrast-200">
+             <img src="/logo.png" className="w-full h-auto" alt="Logo" />
            </div>
            
-           <nav className="flex flex-wrap justify-center gap-10 md:gap-16 text-sm font-black uppercase tracking-[0.4em] text-white/50 font-bold font-black">
-              <button onClick={() => setView('home')}>Inicio</button>
-              <button onClick={() => { setView('home'); setTimeout(() => document.getElementById('agenda')?.scrollIntoView({behavior:'smooth'}), 100); }}>Calendario</button>
-              <button onClick={() => setView('races')}>Carreras</button>
-              <button onClick={() => setView('clubs')}>Clubes</button>
-              <button onClick={() => setView('register')}>Soy Club / Marca</button>
+           <nav className="flex flex-wrap justify-center gap-8 md:gap-14 text-sm font-black uppercase tracking-[0.4em] text-white/50 font-bold font-black">
+              <button onClick={() => setView('home')} className="hover:text-mustard transition-colors">Inicio</button>
+              <button onClick={() => { setView('home'); setTimeout(() => document.getElementById('agenda')?.scrollIntoView({behavior:'smooth'}), 100); }} className="hover:text-mustard transition-colors">Calendario</button>
+              <button onClick={() => setView('races')} className="hover:text-mustard transition-colors">Carreras</button>
+              <button onClick={() => setView('clubs')} className="hover:text-mustard transition-colors">Clubes</button>
+              <button onClick={() => setView('register')} className="hover:text-mustard transition-colors">Club / Marca</button>
            </nav>
 
-           <div className="flex flex-col items-center gap-10 w-full pt-12 border-t border-white/5 font-black font-black font-black">
+           <div className="flex flex-col items-center gap-8 w-full pt-10 border-t border-white/5 font-black font-black font-black">
               <div className="flex gap-14 text-white/30 font-black font-black">
                  <a href="https://instagram.com/runcityhub" target="_blank" className="hover:text-mustard transition-all hover:scale-125 active:scale-90 font-black font-black"><Instagram size={42}/></a>
               </div>
@@ -475,17 +466,30 @@ const PublicApp = ({ user }) => {
         </div>
       </footer>
 
-      {/* LOGIN MODAL */}
+      {/* MODAL DETALLE */}
+      {selectedEvent && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 md:p-10 bg-petrol/95 backdrop-blur-3xl animate-in zoom-in duration-300 text-center overflow-y-auto font-black font-black">
+          <div className="bg-white rounded-6xl w-full max-w-xl relative p-8 md:p-20 shadow-2xl border-t-[25px] border-mustard my-auto max-h-[90vh] overflow-y-auto no-scrollbar font-black text-petrol">
+            <button onClick={() => setSelectedEvent(null)} className="absolute top-6 right-6 md:top-10 md:right-10 p-4 text-petrol bg-gray-50 rounded-full hover:bg-red-50 transition shadow-xl active:scale-90 font-black font-black font-black"><X size={28}/></button>
+            <div className="w-32 h-32 md:w-40 md:h-40 rounded-[3rem] shadow-2xl border-[10px] border-white mx-auto object-cover mb-10 md:mb-16 flex items-center justify-center bg-palemint font-black text-5xl md:text-6xl text-petrol uppercase italic ring-1 ring-turquoise/20 font-black tracking-tighter leading-none font-black font-black font-black">{selectedEvent.club?.logoUrl ? <img src={selectedEvent.club.logoUrl} className="w-full h-full rounded-[2.5rem] object-cover font-black" /> : selectedEvent.club?.name?.[0]}</div>
+            <h2 className="text-3xl md:text-5xl font-black uppercase italic mb-10 md:mb-14 leading-none font-black tracking-tighter font-black font-black">{selectedEvent.club?.name || selectedEvent.organizerName}</h2>
+            <div className="space-y-10 md:space-y-12 text-left max-w-sm mx-auto font-black font-black font-black"><div className="flex gap-6 md:gap-8 items-center text-left font-black font-black font-black"><div className="p-4 md:p-5 bg-palemint rounded-[2.2rem] text-turquoise shadow-inner font-black font-black font-black"><Clock size={36}/></div><div><p className="text-[10px] md:text-[11px] font-black text-petrol uppercase tracking-widest font-black uppercase font-black font-black font-black">Salida</p><p className="text-xl md:text-3xl font-black text-petrol tracking-tight italic uppercase font-black font-black font-black">{selectedEvent.isRecurring ? selectedEvent.day : selectedEvent.specificDate}, {selectedEvent.time} hrs</p></div></div><div className="flex gap-6 md:gap-8 items-center text-left font-black font-black font-black font-black font-black font-black"><div className="p-4 md:p-5 bg-palemint rounded-[2.2rem] text-turquoise shadow-inner font-black font-black font-black font-black font-black font-black"><MapPin size={36}/></div><div><p className="text-[10px] md:text-[11px] font-black text-petrol uppercase tracking-widest font-black uppercase font-black font-black font-black font-black font-black">Ubicación</p><p className="text-xl md:text-3xl font-black text-petrol tracking-tight leading-tight italic font-black italic font-black font-black font-black font-black font-black">{selectedEvent.location}</p></div></div></div>
+            <div className="mt-16 md:mt-24 grid grid-cols-2 gap-4 md:gap-8 font-black font-black font-black font-black"><button onClick={() => setSelectedEvent(null)} className="py-5 md:py-7 rounded-[2.5rem] bg-gray-50 font-black text-[11px] md:text-[12px] uppercase text-gray-500 hover:bg-gray-100 transition tracking-widest font-black font-black font-black font-black font-black font-black">Cerrar</button><button onClick={() => window.open(`https://maps.google.com/?q=${selectedEvent.location} CDMX`)} className="py-5 md:py-7 rounded-[2.5rem] bg-petrol text-mustard font-black text-[11px] md:text-[12px] uppercase shadow-2xl hover:bg-turquoise transition active:scale-95 tracking-widest font-black italic uppercase font-black font-black italic uppercase italic font-black italic uppercase italic font-black font-black font-black">Maps</button></div>
+          </div>
+        </div>
+      )}
+
+      {/* LOGIN MODAL (PEQUEÑO Y CENTRADO) */}
       {view === 'admin-login' && (
         <div className="fixed inset-0 z-[600] flex justify-center p-4 md:p-10 bg-petrol/98 backdrop-blur-3xl animate-in fade-in duration-500 overflow-y-auto font-black text-left font-black">
-           <div className="bg-white p-10 md:p-16 rounded-6xl shadow-2xl w-full max-w-lg relative border-t-[30px] border-mustard my-auto font-black">
-              <button onClick={() => setView('home')} className="absolute top-8 right-8 p-4 text-petrol bg-gray-50 rounded-full hover:bg-red-50 transition shadow-lg active:scale-90 font-black"><X size={28}/></button>
-              <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter mb-4 text-petrol leading-none font-black italic tracking-tighter font-black font-black font-black font-black">CENTRAL <br/> <span className="text-turquoise font-black font-black font-black">ADMIN</span></h2>
+           <div className="bg-white p-10 md:p-14 rounded-6xl shadow-2xl w-full max-w-md relative border-t-[30px] border-mustard my-auto font-black">
+              <button onClick={() => setView('home')} className="absolute top-6 right-6 p-4 text-petrol bg-gray-50 rounded-full hover:bg-red-50 transition shadow-lg active:scale-90 font-black font-black font-black"><X size={24}/></button>
+              <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 text-petrol leading-none font-black italic tracking-tighter font-black font-black font-black font-black">CENTRAL <br/> <span className="text-turquoise font-black font-black font-black font-black">ADMIN</span></h2>
               <form onSubmit={async (e) => {
                 e.preventDefault();
                 try { await signInWithEmailAndPassword(auth, e.target.email.value, e.target.pass.value); setView('admin-panel'); } catch(e) { alert("Acceso denegado."); }
-              }} className="space-y-6 mt-12 font-black font-black font-black font-black font-black font-black font-black font-black font-black">
-                 <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black">Email</label><input required name="email" type="email" placeholder="admin@cityrunhub.mx" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
+              }} className="space-y-6 mt-10 font-black font-black font-black font-black font-black font-black font-black font-black font-black">
+                 <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black">Email Maestro</label><input required name="email" type="email" placeholder="admin@cityrunhub.mx" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
                  <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black font-black font-black">Contraseña</label><input required name="pass" type="password" placeholder="••••••••" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
                  <button className="w-full bg-petrol text-mustard py-8 rounded-4xl font-black text-2xl uppercase italic shadow-2xl active:scale-95 transition-all mt-6 font-black italic font-black font-black font-black font-black font-black font-black font-black font-black font-black">Entrar</button>
               </form>
