@@ -13,12 +13,12 @@ import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, u
 
 // --- CONFIGURACIÓN DE FIREBASE (Extraída de tu imagen f04ac1) ---
 const firebaseConfig = {
-  apiKey: "AIzaSyC2Iaz2nRIarTQ0ZHwadqBFUtWpG9H_j6s",
+  apiKey: "AIzaSyCZIaz2nRIarTQ0ZHWadqBFUTwpG9H_j6s",
   authDomain: "city-run-hub.firebaseapp.com",
   projectId: "city-run-hub",
   storageBucket: "city-run-hub.firebasestorage.app",
   messagingSenderId: "75213815459",
-  appId: "1:75213815459:web:6e98ba8a4e729f9d14c916",
+  appId: "1:75213815459:web:6e90ba0a4e729f9d14c916",
   measurementId: "G-3F4MW7LRWP"
 };
 
