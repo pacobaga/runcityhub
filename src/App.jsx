@@ -383,7 +383,7 @@ const PublicApp = ({ user }) => {
                     <div className="flex items-center gap-8 font-black font-black">
                        <button onClick={() => setCurrentWeekStart(new Date(currentWeekStart.setDate(currentWeekStart.getDate()-7)))} className="p-5 bg-white rounded-3xl shadow-xl hover:bg-petrol hover:text-white transition-all active:scale-90 font-black font-black font-black font-black font-black"><ChevronLeft size={28}/></button>
                        <div className="text-center min-w-[280px] font-black font-black font-black">
-                          <p className="text-[11px] font-black uppercase tracking-[0.4em] mb-2 font-black italic tracking-widest text-gray-400 font-black font-black font-black">Semana del asfalto</p>
+                          <p className="text-[11px] font-black uppercase tracking-[0.4em] mb-2 font-black italic tracking-widest text-gray-400 font-black font-black font-black">Semana de Running</p>
                           <h4 className="text-2xl font-black uppercase italic tracking-tighter text-petrol leading-none font-black tracking-tighter font-black font-black uppercase font-black">{weekDates[0].getDate()} {weekDates[0].toLocaleString('es-MX', {month:'short'})} — {weekDates[6].getDate()} {weekDates[6].toLocaleString('es-MX', {month:'short'})}</h4>
                        </div>
                        <button onClick={() => setCurrentWeekStart(new Date(currentWeekStart.setDate(currentWeekStart.getDate()+7)))} className="p-5 bg-white rounded-3xl shadow-xl hover:bg-petrol hover:text-white transition-all active:scale-90 font-black font-black font-black font-black font-black"><ChevronRight size={28}/></button>
@@ -422,7 +422,7 @@ const PublicApp = ({ user }) => {
       {/* RACES SECTION */}
       {view === 'races' && (
         <main className="max-w-7xl mx-auto px-6 py-24 animate-in fade-in duration-700 flex-1 text-center font-black">
-           <h2 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter text-petrol mb-12 font-black leading-none font-black font-black">METAS <span className="text-turquoise font-black italic font-black font-black font-black font-black font-black font-black">2026</span></h2>
+           <h2 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter text-petrol mb-12 font-black leading-none font-black font-black">CARRERAS <span className="text-turquoise font-black italic font-black font-black font-black font-black font-black font-black">2026</span></h2>
            <div className="grid gap-10 max-w-4xl mx-auto text-left font-black font-black font-black font-black">
              {sortedRaces.map(r => (
                <div key={r.id} className="bg-white p-10 rounded-[4rem] border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-8 border-l-[15px] border-l-mustard hover:shadow-2xl transition-all group font-black font-black">
