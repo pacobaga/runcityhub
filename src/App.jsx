@@ -12,28 +12,23 @@ import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassw
 import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 // --- CONFIGURACIÓN DE FIREBASE ---
-// TODO: Pega tus llaves aquí si aún no lo has hecho
 const firebaseConfig = {
+
   apiKey: "AIzaSyCZIaz2nRIarTQ0ZHWadqBFUTwpG9H_j6s",
+
   authDomain: "city-run-hub.firebaseapp.com",
+
   projectId: "city-run-hub",
+
   storageBucket: "city-run-hub.firebasestorage.app",
+
   messagingSenderId: "75213815459",
+
   appId: "1:75213815459:web:6e90ba0a4e729f9d14c916",
+
   measurementId: "G-3F4MW7LRWP"
+
 };
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const FIREBASE_APP_ID = 'city-run-hub-prod';
-
-// --- DATOS DE RESPALDO (Hardcoded para evitar errores de carga) ---
-const FIXED_CITIES = [{ id: 'default-cdmx', name: 'CDMX' }];
-const FIXED_ZONES = [
-  "POLANCO", "ROMA", "CONDESA", "CHAPULTEPEC I", "CHAPULTEPEC II", 
-  "REFORMA", "ESTELA DE LUZ", "C.U.", "COYOACAN", "TLALPAN", "SANTA FE"
-];
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -272,7 +267,7 @@ const PublicApp = ({ user }) => {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center cursor-pointer group" onClick={() => setView('home')}>
              <div className="w-11 h-11 md:w-14 md:h-14 bg-white rounded-2xl flex items-center justify-center mr-4 shadow-xl overflow-hidden border border-gray-100 logo-shadow group-hover:rotate-12 transition-transform font-black">
-               <img src="/cityrunhublogo.png" className="w-full h-full object-contain p-1.5 font-black" alt="Logo" />
+               <img src="/logo.png" className="w-full h-full object-contain p-1.5 font-black" alt="Logo" />
              </div>
              <div className="text-xl md:text-3xl font-black tracking-tighter uppercase italic leading-none text-left tracking-tighter font-black">RUN CITY <span className="text-turquoise font-black italic">HUB</span></div>
           </div>
@@ -480,7 +475,7 @@ const PublicApp = ({ user }) => {
 
            <div className="flex flex-col items-center gap-10 w-full pt-12 border-t border-white/5 font-black font-black font-black">
               <div className="flex gap-14 text-white/30 font-black font-black">
-                 <a href="https://instagram.com/runcityhub" target="_blank" className="hover:text-mustard transition-all hover:scale-125 active:scale-90 font-black font-black"><Instagram size={42}/></a>
+                 <a href="https://instagram.com/paco_barrera" target="_blank" className="hover:text-mustard transition-all hover:scale-125 active:scale-90 font-black font-black"><Instagram size={42}/></a>
               </div>
               <p className="text-[10px] font-black text-white/10 tracking-[1.5em] uppercase italic font-bold font-black">MÉXICO • 2026</p>
               <button onClick={() => setView('admin-login')} className="opacity-10 hover:opacity-100 transition-opacity uppercase text-[8px] font-black border border-white/20 px-10 py-2.5 rounded-full tracking-[0.5em] font-bold font-black">ADMIN ACCESS</button>
