@@ -272,7 +272,7 @@ const PublicApp = ({ user }) => {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center cursor-pointer group" onClick={() => setView('home')}>
              <div className="w-11 h-11 md:w-14 md:h-14 bg-white rounded-2xl flex items-center justify-center mr-4 shadow-xl overflow-hidden border border-gray-100 logo-shadow group-hover:rotate-12 transition-transform font-black">
-               <img src="/logo.png" className="w-full h-full object-contain p-1.5 font-black" alt="Logo" />
+               <img src="/cityrunhublogo.png" className="w-full h-full object-contain p-1.5 font-black" alt="Logo" />
              </div>
              <div className="text-xl md:text-3xl font-black tracking-tighter uppercase italic leading-none text-left tracking-tighter font-black">RUN CITY <span className="text-turquoise font-black italic">HUB</span></div>
           </div>
