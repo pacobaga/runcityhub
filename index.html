@@ -1,10 +1,64 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/png" href="https://firebasestorage.googleapis.com/v0/b/city-run-hub-prod.appspot.com/o/public%2Fruncityhublogo.png?alt=media" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>myapp</title>
+    <title>Run City Hub | CDMX 2026</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Configuración de diseño corporativo -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              petrol: '#1B4353',
+              mustard: '#E9C46A',
+              turquoise: '#2A9D8F',
+              palemint: '#F1FAEE',
+            },
+            borderRadius: {
+              '4xl': '2rem',
+              '5xl': '3.5rem',
+              '6xl': '5rem',
+            }
+          }
+        }
+      }
+    </script>
+    
+    <style>
+      body { 
+        font-family: 'Inter', sans-serif; 
+        background-color: white; 
+        color: #1B4353; 
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+      }
+      
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+      .hero-title {
+        font-size: clamp(2.8rem, 9vw, 7.5rem);
+        line-height: 0.85;
+        letter-spacing: -0.05em;
+        font-weight: 900;
+        text-transform: uppercase;
+        font-style: italic;
+      }
+
+      .logo-shadow {
+        filter: drop-shadow(0 10px 20px rgba(27, 67, 83, 0.15));
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
