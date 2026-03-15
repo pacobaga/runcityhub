@@ -11,7 +11,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc, query, orderBy } from 'firebase/firestore';
 
-// --- CONFIGURACIÓN DE FIREBASE (Extraída de tu imagen f04ac1) ---
+// --- CONFIGURACIÓN DE FIREBASE ---
 const firebaseConfig = {
   apiKey: "AIzaSyCZIaz2nRIarTQ0ZHWadqBFUTwpG9H_j6s",
   authDomain: "city-run-hub.firebaseapp.com",
@@ -28,7 +28,13 @@ const db = getFirestore(app);
 const FIREBASE_APP_ID = 'city-run-hub-prod';
 
 // --- DATOS MAESTROS ---
-const HARDCODED_CITIES = [{ id: 'default-cdmx', name: 'CDMX' }];
+const HARDCODED_CITIES = [
+  { id: 'default-cdmx', name: 'CDMX' },
+  { id: 'default-qro', name: 'Querétaro' },
+  { id: 'default-gdl', name: 'Guadalajara' },
+  { id: 'default-mty', name: 'Monterrey' }
+];
+
 const HARDCODED_ZONES = [
   "POLANCO", "ROMA", "CONDESA", "CHAPULTEPEC I", "CHAPULTEPEC II", 
   "REFORMA", "ESTELA DE LUZ", "C.U.", "COYOACÁN", "TLALPAN", "SANTA FE"
@@ -100,6 +106,18 @@ const AdminPanel = ({ user, onClose }) => {
     await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'races'), newRace);
     alert("Carrera publicada.");
     setNewRace({ name: '', date: '', distance: '', zone: 'REFORMA', link: '', city: 'CDMX' });
+  };
+
+  const handleAddZone = async () => {
+    if(!newZone.name) return;
+    await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'zones'), newZone);
+    setNewZone({ ...newZone, name: '' });
+  };
+
+  const handleAddCity = async () => {
+    if(!newCity) return;
+    await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'cities'), { name: newCity });
+    setNewCity('');
   };
 
   return (
@@ -355,7 +373,7 @@ const PublicApp = ({ user }) => {
             <button onClick={() => { setView('home'); setTimeout(() => document.getElementById('agenda')?.scrollIntoView({behavior:'smooth'}), 100); }}>Calendario</button>
             <button onClick={() => setView('races')} className={view==='races'?'text-petrol':''}>Carreras 2026</button>
             <button onClick={() => setView('clubs')} className={view==='clubs'?'text-petrol':''}>Clubes</button>
-            <button onClick={() => setView('register')} className={view==='register'?'text-petrol':''}>Club / Marca</button>
+            <button onClick={() => setView('register')} className={view==='register'?'text-petrol':''}>Registro Club</button>
             <div className="relative flex items-center bg-gray-50 rounded-xl px-4 py-2 font-black text-petrol border border-gray-100 shadow-inner group font-black">
               <select className="bg-transparent outline-none appearance-none pr-8 cursor-pointer uppercase text-[10px] tracking-widest font-black" value={selectedCity} onChange={e => { setSelectedCity(e.target.value); setSelectedZone('Todos'); }}>
                 {HARDCODED_CITIES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
@@ -462,16 +480,22 @@ const PublicApp = ({ user }) => {
         <main className="max-w-7xl mx-auto px-6 py-24 animate-in slide-in-from-bottom duration-700 flex-1 text-center font-black font-black font-black font-black">
            <h2 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter text-petrol mb-24 font-black leading-none font-black font-black font-black font-black font-black">DIRECTORIO <br/><span className="text-turquoise italic font-black font-black font-black font-black font-black font-black font-black font-black font-black">DE CLUBES.</span></h2>
            <div className="grid md:grid-cols-3 gap-12 font-black font-black font-black font-black font-black">
-             {clubs.filter(c => c.type === 'club').map(club => (
-               <div key={club.id} className="bg-white p-12 rounded-[5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all flex flex-col items-center font-black animate-in zoom-in h-full font-black font-black">
-                 <img src={club.logoUrl || "https://via.placeholder.com/200"} className="w-36 h-36 rounded-full border-[10px] border-white shadow-2xl object-cover mb-10 font-black font-black font-black font-black font-black font-black" />
-                 <h3 className="text-3xl font-black mb-2 uppercase italic text-petrol font-black font-black font-black font-black font-black font-black font-black">{club.name}</h3>
-                 <p className="text-turquoise font-black uppercase text-[10px] mb-10 px-6 py-2 bg-palemint rounded-full font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black">{club.city} • {club.zone || 'Global'}</p>
-                 <div className="mt-auto w-full font-black">
-                    <button onClick={() => window.open(`https://instagram.com/${club.social}`)} className="bg-petrol text-mustard w-full py-5 rounded-4xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-3 hover:scale-105 italic font-black font-black"><Instagram size={18}/> Ver Perfil</button>
+             {clubs.filter(c => c.type === 'club').length === 0 ? (
+                <div className="col-span-full py-20 text-center">
+                  <p className="text-gray-400 font-black uppercase italic tracking-widest">Aún no hay clubes registrados.</p>
+                </div>
+             ) : (
+               clubs.filter(c => c.type === 'club').map(club => (
+                 <div key={club.id} className="bg-white p-12 rounded-[5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all flex flex-col items-center font-black animate-in zoom-in h-full font-black font-black">
+                   <img src={club.logoUrl || "https://via.placeholder.com/200"} className="w-36 h-36 rounded-full border-[10px] border-white shadow-2xl object-cover mb-10 font-black font-black font-black font-black font-black font-black" />
+                   <h3 className="text-3xl font-black mb-2 uppercase italic text-petrol font-black font-black font-black font-black font-black font-black font-black">{club.name}</h3>
+                   <p className="text-turquoise font-black uppercase text-[10px] mb-10 px-6 py-2 bg-palemint rounded-full font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black">{club.city} • {club.zone || 'Global'}</p>
+                   <div className="mt-auto w-full font-black">
+                      <button onClick={() => window.open(`https://instagram.com/${club.social}`)} className="bg-petrol text-mustard w-full py-5 rounded-4xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-3 hover:scale-105 italic font-black font-black"><Instagram size={18}/> Ver Perfil</button>
+                   </div>
                  </div>
-               </div>
-             ))}
+               ))
+             )}
            </div>
         </main>
       )}
@@ -518,7 +542,33 @@ const PublicApp = ({ user }) => {
         </main>
       )}
 
-      {/* FOOTER (VISIBLE Y ESTÉTICO) */}
+      {/* Ficha de Evento (Modal) */}
+      {selectedEvent && (
+        <div className="fixed inset-0 z-[500] bg-petrol/90 backdrop-blur-sm flex items-center justify-center p-4">
+           <div className="bg-white p-8 rounded-[3rem] max-w-sm w-full relative text-left shadow-2xl animate-in zoom-in duration-300">
+              <button onClick={() => setSelectedEvent(null)} className="absolute top-6 right-6 bg-gray-100 p-3 text-petrol hover:bg-red-50 hover:text-red-500 rounded-full transition-colors"><X size={20}/></button>
+              
+              <div className="text-[10px] uppercase font-black tracking-[0.3em] text-turquoise mb-2">{RUN_TYPES[selectedEvent.type]?.label || 'Evento'}</div>
+              <h3 className="text-3xl font-black italic uppercase text-petrol mb-1 leading-none tracking-tighter">{selectedEvent.club?.name || selectedEvent.organizerName}</h3>
+              <p className="text-xs font-bold text-gray-400 mb-8 uppercase tracking-widest">{selectedEvent.distance || 'Social Run'}</p>
+              
+              <div className="space-y-4 mb-8 bg-gray-50 p-6 rounded-4xl border border-gray-100">
+                 <div className="flex items-center gap-3"><CalendarDays size={18} className="text-mustard"/><span className="text-xs font-black uppercase text-petrol">{selectedEvent.day || selectedEvent.specificDate} • {selectedEvent.time} hrs</span></div>
+                 <div className="flex items-center gap-3"><MapPin size={18} className="text-mustard"/><span className="text-xs font-black uppercase text-petrol">{selectedEvent.zone}</span></div>
+                 <div className="flex items-center gap-3"><Map size={18} className="text-mustard"/><span className="text-xs font-bold text-petrol">{selectedEvent.location || 'Punto de encuentro por definir'}</span></div>
+              </div>
+              
+              <button 
+                onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(selectedEvent.location || selectedEvent.zone)}`, '_blank')} 
+                className="w-full bg-petrol text-mustard py-5 rounded-full font-black uppercase tracking-widest text-[11px] flex justify-center items-center gap-3 hover:bg-turquoise hover:text-white transition-colors shadow-xl active:scale-95"
+              >
+                <MapPin size={16}/> Abrir en Maps
+              </button>
+           </div>
+        </div>
+      )}
+
+      {/* FOOTER */}
       <footer className="bg-petrol text-white py-24 mt-auto rounded-t-6xl relative overflow-hidden px-8 text-center font-black shadow-[0_-50px_100px_-20px_rgba(27,67,83,0.1)] font-black font-black">
         <div className="absolute inset-0 bg-white/5 opacity-5 pointer-events-none font-black"></div>
         <div className="max-w-7xl mx-auto flex flex-col items-center gap-10 relative z-10 text-center font-black font-black font-black font-black font-black font-black">
@@ -528,7 +578,7 @@ const PublicApp = ({ user }) => {
               <button onClick={() => { setView('home'); setTimeout(() => document.getElementById('agenda')?.scrollIntoView({behavior:'smooth'}), 100); }} className="hover:text-mustard transition-colors font-black font-black font-black">Calendario</button>
               <button onClick={() => setView('races')} className="hover:text-mustard transition-colors font-black font-black">Carreras</button>
               <button onClick={() => setView('clubs')} className="hover:text-mustard transition-colors font-black font-black">Clubes</button>
-              <button onClick={() => setView('register')} className="hover:text-mustard transition-colors font-black font-black">Club / Marca</button>
+              <button onClick={() => setView('register')} className="hover:text-mustard transition-colors font-black font-black">Registro Club</button>
            </nav>
            <div className="flex flex-col items-center gap-8 w-full pt-10 border-t border-white/5 font-black font-black font-black font-black font-black font-black font-black font-black">
               <div className="flex gap-14 text-white/30 font-black font-black font-black font-black font-black">
