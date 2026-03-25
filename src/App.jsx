@@ -349,6 +349,7 @@ const PublicApp = ({ user }) => {
 
   // Registro Público
   const [regType, setRegType] = useState('club');
+  const [formCity, setFormCity] = useState(selectedCity); // Estado local para el dropdown de ciudad en registro
 
   // Sistema de Rutas Ocultas (Admin)
   useEffect(() => {
@@ -375,8 +376,11 @@ const PublicApp = ({ user }) => {
   const allCities = useMemo(() => [...HARDCODED_CITIES, ...dbCities], [dbCities]);
   const allZones = useMemo(() => [...HARDCODED_ZONES, ...dbZones], [dbZones]);
   
-  // Zonas dinámicas según la ciudad seleccionada
+  // Zonas dinámicas según la ciudad seleccionada en el navegador principal
   const currentCityZones = useMemo(() => allZones.filter(z => z.city === selectedCity).map(z => z.name), [allZones, selectedCity]);
+
+  // Zonas dinámicas según la ciudad seleccionada en el FORMULARIO DE REGISTRO
+  const formZones = useMemo(() => allZones.filter(z => z.city === formCity).map(z => z.name), [allZones, formCity]);
 
   const weekDates = useMemo(() => [0, 1, 2, 3, 4, 5, 6].map(i => {
     const d = new Date(currentWeekStart);
@@ -555,16 +559,22 @@ const PublicApp = ({ user }) => {
            <form onSubmit={async (e) => {
              e.preventDefault();
              const f = new FormData(e.target);
-             const clubData = { name: f.get('name'), social: f.get('social'), email: f.get('email'), city: selectedCity, type: regType, status: 'pending', createdAt: new Date().toISOString() };
+             const selectedFormCity = f.get('city');
+             const clubData = { name: f.get('name'), social: f.get('social'), email: f.get('email'), city: selectedFormCity, type: regType, status: 'pending', createdAt: new Date().toISOString() };
              const clubRef = await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs_pending'), clubData);
              
              if(regType === 'business') {
                 await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events_pending'), { 
                     clubId: clubRef.id, organizerName: f.get('name'), day: f.get('day'), time: f.get('time'), zone: f.get('zone'), 
-                    type: 'EE', city: selectedCity, location: f.get('loc'), isRecurring: true, status: 'pending'
+                    type: 'EE', city: selectedFormCity, location: f.get('loc'), isRecurring: true, status: 'pending'
                 });
              }
-             alert("Solicitud enviada."); window.location.hash=''; setView('home');
+             
+             if (window.confirm("Solicitud enviada con éxito. ¿Deseas registrar otra solicitud?")) {
+                e.target.reset();
+             } else {
+                window.location.hash=''; setView('home');
+             }
            }} className="bg-gray-50 p-16 rounded-6xl border border-gray-100 shadow-2xl space-y-12 font-black">
               <div className="flex bg-white p-2.5 rounded-4xl shadow-inner border border-gray-50 font-black">
                  <button type="button" onClick={() => setRegType('club')} className={`flex-1 py-5 rounded-[1.8rem] font-black uppercase text-[11px] ${regType==='club'?'bg-petrol text-mustard shadow-2xl scale-105 font-black font-black':'text-gray-300 font-black font-black font-black'}`}>Running Club</button>
@@ -574,15 +584,24 @@ const PublicApp = ({ user }) => {
                 <div className="space-y-3 font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-bold font-black font-black">Nombre Oficial</label><input required name="name" className="w-full p-8 rounded-4xl border-none font-black bg-white shadow-sm outline-none text-petrol font-black font-black" /></div>
                 <div className="space-y-3 font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-bold font-black font-black">Instagram (@)</label><input required name="social" placeholder="usuario" className="w-full p-8 rounded-4xl border-none font-black bg-white shadow-sm outline-none text-petrol font-black font-black" /></div>
               </div>
+              
+              <div className="space-y-3 font-black font-black">
+                 <label className="text-[11px] font-black uppercase text-gray-400 font-bold font-black font-black">Ciudad Sede</label>
+                 <select required name="city" value={formCity} onChange={e => setFormCity(e.target.value)} className="w-full p-8 rounded-4xl border-none font-black bg-white shadow-sm outline-none text-petrol font-black font-black">
+                    {allCities.map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}
+                 </select>
+              </div>
+
               {regType === 'business' && (
                 <div className="p-10 bg-white rounded-5xl border border-mustard/20 space-y-8 animate-in zoom-in duration-300 font-black font-black">
-                    <h4 className="text-xl uppercase italic text-petrol border-b border-gray-50 pb-4 font-black font-black">Primer Evento en {selectedCity}</h4>
+                    <h4 className="text-xl uppercase italic text-petrol border-b border-gray-50 pb-4 font-black font-black">Registra tu evento</h4>
                     <div className="grid grid-cols-2 gap-4 font-black">
                         <select name="day" className="p-6 bg-gray-50 rounded-3xl font-black font-black font-black">{dayNames.map(d=><option key={d}>{d}</option>)}</select>
                         <input type="time" name="time" className="p-6 bg-gray-50 rounded-3xl font-black font-black font-black" defaultValue="07:00" />
                     </div>
                     <select name="zone" className="w-full p-6 bg-gray-50 rounded-3xl font-black font-black font-black font-black font-black">
-                       {currentCityZones.length > 0 ? currentCityZones.map(z=><option key={z} value={z}>{z}</option>) : <option value="Global">Global</option>}
+                       <option value="">Selecciona una zona...</option>
+                       {formZones.length > 0 ? formZones.map(z=><option key={z} value={z}>{z}</option>) : <option value="Global">Global</option>}
                     </select>
                     <input name="loc" placeholder="Lugar exacto (Ej. Parque México)" className="w-full p-6 bg-gray-50 rounded-3xl font-black font-black font-black" />
                 </div>
