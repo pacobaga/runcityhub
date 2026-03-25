@@ -43,7 +43,8 @@ const HARDCODED_ZONES = [
   { name: "ESTELA DE LUZ", city: "CDMX" }, { name: "C.U.", city: "CDMX" }, 
   { name: "COYOACÁN", city: "CDMX" }, { name: "TLALPAN", city: "CDMX" }, 
   { name: "SANTA FE", city: "CDMX" },
-  { name: "Revolución", city: "Pachuca" }, { name: "Parque Cultural Hidalguense", city: "Pachuca" }, { name: "Río de las Avenidas", city: "Pachuca" }
+  { name: "Revolución", city: "Pachuca" }, { name: "Parque Cultural Hidalguense", city: "Pachuca" },
+  { name: "Río de las Avenidas", city: "Pachuca" }
 ];
 
 const RUN_TYPES = {
@@ -347,9 +348,10 @@ const PublicApp = ({ user }) => {
   const [dbZones, setDbZones] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Registro Público
+  // Registro Público y Filtros
   const [regType, setRegType] = useState('club');
-  const [formCity, setFormCity] = useState(selectedCity); // Estado local para el dropdown de ciudad en registro
+  const [formCity, setFormCity] = useState(selectedCity); 
+  const [clubDirectoryTab, setClubDirectoryTab] = useState('club'); // Filtro 'club' o 'business' para el directorio
 
   // Sistema de Rutas Ocultas (Admin)
   useEffect(() => {
@@ -357,7 +359,7 @@ const PublicApp = ({ user }) => {
       if (window.location.hash === '#admin') setView('admin-login');
     };
     window.addEventListener('hashchange', handleHash);
-    handleHash(); // Revisar al inicio
+    handleHash(); 
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
@@ -488,18 +490,18 @@ const PublicApp = ({ user }) => {
 
               <div className="space-y-24 text-left font-black font-black">
                  {[{t: 'MAÑANA', times: ["06:00", "07:00", "08:00", "08:30"], color: 'bg-petrol'}, {t: 'TARDE', times: ["18:00", "19:00", "20:00", "20:30"], color: 'bg-turquoise'}].map(sec => (
-                   <div key={sec.t} className="bg-white rounded-[5rem] shadow-[0_40px_80px_-20px_rgba(27,67,83,0.08)] overflow-hidden border border-gray-100 text-left font-black font-black">
-                      <div className={`${sec.color} p-12 text-white flex justify-between items-center font-black font-black`}><h3 className="text-4xl font-black uppercase italic leading-none tracking-tighter font-black font-black font-black">{sec.t}</h3><span className="bg-white/10 px-8 py-3 rounded-full font-black text-[11px] uppercase tracking-[0.4em] backdrop-blur-md font-black font-black">{selectedCity}</span></div>
+                   <div key={sec.t} className="bg-white rounded-[4rem] md:rounded-[5rem] shadow-[0_40px_80px_-20px_rgba(27,67,83,0.08)] overflow-hidden border border-gray-100 text-left font-black font-black">
+                      <div className={`${sec.color} p-10 md:p-12 text-white flex justify-between items-center font-black font-black`}><h3 className="text-4xl font-black uppercase italic leading-none tracking-tighter font-black font-black font-black">{sec.t}</h3><span className="bg-white/10 px-8 py-3 rounded-full font-black text-[11px] uppercase tracking-[0.4em] backdrop-blur-md font-black font-black">{selectedCity}</span></div>
                       <div className="overflow-x-auto no-scrollbar font-black font-black">
                         <table className="w-full min-w-[1200px] border-collapse font-black font-black">
-                           <thead><tr className="bg-gray-50/50 text-[10px] font-black text-gray-300 uppercase border-b border-gray-100 font-black tracking-widest font-black font-black"><th className="p-12 text-left w-48 opacity-40 font-black font-black">Horario</th>{dayNames.map((d, i) => <th key={d} className="p-10 text-center font-black font-black uppercase font-black font-black">{d} <br/><span className="text-turquoise text-[10px] font-black font-black">{weekDates[i].getDate()} {weekDates[i].toLocaleString('es-MX', {month:'short'})}</span></th>)}</tr></thead>
+                           <thead><tr className="bg-gray-50/50 text-[10px] font-black text-gray-500 uppercase border-b border-gray-100 font-black tracking-widest font-black font-black"><th className="p-8 text-left w-40 text-gray-500 font-black font-black">Horario</th>{dayNames.map((d, i) => <th key={d} className="p-8 text-center font-black font-black uppercase font-black font-black">{d} <br/><span className="text-turquoise text-[10px] font-black font-black">{weekDates[i].getDate()} {weekDates[i].toLocaleString('es-MX', {month:'short'})}</span></th>)}</tr></thead>
                            <tbody>
                               {sec.times.map(t => (
-                                <tr key={t} className="group font-black font-black font-black"><td className="p-12 text-sm font-black text-gray-300 border-b border-gray-50 font-black group-hover:text-petrol transition-colors font-black">{t}</td>{dayNames.map((d, i) => {
+                                <tr key={t} className="group font-black font-black font-black"><td className="p-8 text-base font-black text-gray-500 border-b border-gray-50 font-black group-hover:text-petrol transition-colors font-black">{t}</td>{dayNames.map((d, i) => {
                                   const ev = getEventForSlot(d, t, weekDates[i]);
                                   const cl = ev?.clubId ? clubs.find(c => c.id === ev.clubId) : null;
-                                  return <td key={d+t} className="p-2 border-b border-gray-50 h-52 align-top font-black font-black font-black">{ev && (
-                                      <div onClick={() => setSelectedEvent({...ev, club: cl || {name: ev.organizerName}})} className={`p-7 rounded-[3rem] border-l-[14px] cursor-pointer hover:shadow-2xl hover:-translate-y-2 transition-all h-full flex flex-col justify-between text-left shadow-sm ${RUN_TYPES[ev.type]?.color || 'bg-gray-50'} font-black font-black`}><span className="text-[9px] font-black uppercase opacity-40 font-black font-black font-black font-black font-black">{RUN_TYPES[ev.type]?.label}</span><div className="text-lg font-black leading-tight uppercase italic line-clamp-2 text-petrol font-black font-black font-black font-black font-black font-black">{cl ? cl.name : ev.organizerName}</div><div className="space-y-1.5 mt-4 font-black font-black"><div className="text-[10px] font-bold text-turquoise flex items-center gap-2 uppercase font-black font-black font-black font-black font-black"><Zap size={12}/> {ev.distance || 'Social Run'}</div><div className="text-[10px] font-bold text-gray-400 flex items-center gap-2 uppercase font-black font-black font-black font-black font-black font-black"><MapPin size={12}/> {ev.zone}</div></div></div>
+                                  return <td key={d+t} className="p-3 border-b border-gray-50 h-40 align-top font-black font-black font-black">{ev && (
+                                      <div onClick={() => setSelectedEvent({...ev, club: cl || {name: ev.organizerName}})} className={`p-5 rounded-[2.5rem] border-l-[10px] cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all h-full flex flex-col justify-between text-left shadow-sm ${RUN_TYPES[ev.type]?.color || 'bg-gray-50'} font-black font-black`}><span className="text-[9px] font-black uppercase opacity-60 font-black font-black font-black font-black font-black">{RUN_TYPES[ev.type]?.label}</span><div className="text-base font-black leading-tight uppercase italic line-clamp-2 text-petrol font-black font-black font-black font-black font-black font-black">{cl ? cl.name : ev.organizerName}</div><div className="space-y-1 mt-3 font-black font-black"><div className="text-[10px] font-bold text-turquoise flex items-center gap-2 uppercase font-black font-black font-black font-black font-black"><Zap size={12}/> {ev.distance || 'Social Run'}</div><div className="text-[10px] font-bold text-gray-500 flex items-center gap-2 uppercase font-black font-black font-black font-black font-black font-black"><MapPin size={12}/> {ev.zone}</div></div></div>
                                     )}</td>
                                 })}</tr>
                               ))}
@@ -531,14 +533,21 @@ const PublicApp = ({ user }) => {
 
       {view === 'clubs' && (
         <main className="max-w-7xl mx-auto px-6 py-24 animate-in slide-in-from-bottom duration-700 flex-1 text-center font-black font-black font-black font-black">
-           <h2 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter text-petrol mb-24 font-black leading-none font-black font-black font-black font-black font-black">DIRECTORIO <br/><span className="text-turquoise italic font-black font-black font-black font-black font-black font-black font-black font-black font-black">DE CLUBES.</span></h2>
+           <h2 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter text-petrol mb-16 font-black leading-none font-black font-black font-black font-black font-black">DIRECTORIO <br/><span className="text-turquoise italic font-black font-black font-black font-black font-black font-black font-black font-black font-black">DE CLUBES.</span></h2>
+           
+           {/* SUBMENU DE TIPO DE DIRECTORIO */}
+           <div className="flex bg-gray-50 p-2.5 rounded-4xl shadow-inner border border-gray-100 max-w-md mx-auto mb-16 font-black">
+              <button onClick={() => setClubDirectoryTab('club')} className={`flex-1 py-4 rounded-[1.8rem] font-black uppercase text-[11px] transition-all ${clubDirectoryTab==='club'?'bg-petrol text-mustard shadow-xl scale-105':'text-gray-400 hover:text-petrol'}`}>Running Clubs</button>
+              <button onClick={() => setClubDirectoryTab('business')} className={`flex-1 py-4 rounded-[1.8rem] font-black uppercase text-[11px] transition-all ${clubDirectoryTab==='business'?'bg-petrol text-mustard shadow-xl scale-105':'text-gray-400 hover:text-petrol'}`}>Marcas / Negocios</button>
+           </div>
+
            <div className="grid md:grid-cols-3 gap-12 font-black font-black font-black font-black font-black">
-             {clubs.filter(c => c.type === 'club' && c.city === selectedCity).length === 0 ? (
+             {clubs.filter(c => c.type === clubDirectoryTab && c.city === selectedCity).length === 0 ? (
                 <div className="col-span-full py-20 text-center">
-                  <p className="text-gray-400 font-black uppercase italic tracking-widest">Aún no hay clubes registrados en {selectedCity}.</p>
+                  <p className="text-gray-400 font-black uppercase italic tracking-widest">Aún no hay {clubDirectoryTab === 'club' ? 'clubes registrados' : 'marcas o negocios registrados'} en {selectedCity}.</p>
                 </div>
              ) : (
-               clubs.filter(c => c.type === 'club' && c.city === selectedCity).map(club => (
+               clubs.filter(c => c.type === clubDirectoryTab && c.city === selectedCity).map(club => (
                  <div key={club.id} className="bg-white p-12 rounded-[5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all flex flex-col items-center font-black animate-in zoom-in h-full font-black font-black">
                    <img src={club.logoUrl || "https://via.placeholder.com/200"} className="w-36 h-36 rounded-full border-[10px] border-white shadow-2xl object-cover mb-10 font-black font-black font-black font-black font-black font-black" />
                    <h3 className="text-3xl font-black mb-2 uppercase italic text-petrol font-black font-black font-black font-black font-black font-black font-black">{club.name}</h3>
