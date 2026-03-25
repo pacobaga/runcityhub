@@ -30,14 +30,20 @@ const FIREBASE_APP_ID = 'city-run-hub-prod';
 // --- DATOS MAESTROS ---
 const HARDCODED_CITIES = [
   { id: 'default-cdmx', name: 'CDMX' },
+  { id: 'default-pac', name: 'Pachuca' },
   { id: 'default-qro', name: 'Querétaro' },
   { id: 'default-gdl', name: 'Guadalajara' },
   { id: 'default-mty', name: 'Monterrey' }
 ];
 
 const HARDCODED_ZONES = [
-  "POLANCO", "ROMA", "CONDESA", "CHAPULTEPEC I", "CHAPULTEPEC II", 
-  "REFORMA", "ESTELA DE LUZ", "C.U.", "COYOACÁN", "TLALPAN", "SANTA FE"
+  { name: "POLANCO", city: "CDMX" }, { name: "ROMA", city: "CDMX" }, 
+  { name: "CONDESA", city: "CDMX" }, { name: "CHAPULTEPEC I", city: "CDMX" }, 
+  { name: "CHAPULTEPEC II", city: "CDMX" }, { name: "REFORMA", city: "CDMX" }, 
+  { name: "ESTELA DE LUZ", city: "CDMX" }, { name: "C.U.", city: "CDMX" }, 
+  { name: "COYOACÁN", city: "CDMX" }, { name: "TLALPAN", city: "CDMX" }, 
+  { name: "SANTA FE", city: "CDMX" },
+  { name: "Revolución", city: "Pachuca" }, { name: "Parque Cultural Hidalguense", city: "Pachuca" }, { name: "Río de las Avenidas", city: "Pachuca" }
 ];
 
 const RUN_TYPES = {
@@ -71,10 +77,10 @@ const AdminPanel = ({ user, onClose }) => {
   const [dbZones, setDbZones] = useState([]);
   
   const [newClub, setNewClub] = useState({ name: '', social: '', email: '', type: 'club', city: 'CDMX' });
-  const [newRace, setNewRace] = useState({ name: '', date: '', distance: '', zone: 'REFORMA', link: '', city: 'CDMX' });
+  const [newRace, setNewRace] = useState({ name: '', date: '', distance: '', zone: '', link: '', city: 'CDMX' });
   const [newCity, setNewCity] = useState('');
   const [newZone, setNewZone] = useState({ name: '', city: 'CDMX' });
-  const [indieEvent, setIndieEvent] = useState({ organizerName: 'Run City Hub', day: 'Lunes', time: '07:00', zone: 'REFORMA', type: 'SR', location: '', isRecurring: true });
+  const [indieEvent, setIndieEvent] = useState({ organizerName: 'Run City Hub', day: 'Lunes', time: '07:00', city: 'CDMX', zone: '', type: 'SR', location: '', isRecurring: true });
 
   useEffect(() => {
     if (!user) return;
@@ -88,6 +94,9 @@ const AdminPanel = ({ user, onClose }) => {
     ];
     return () => unsub.forEach(fn => fn());
   }, [user]);
+
+  const allCities = useMemo(() => [...HARDCODED_CITIES, ...dbCities], [dbCities]);
+  const allZones = useMemo(() => [...HARDCODED_ZONES, ...dbZones], [dbZones]);
 
   const handleApproveClub = async (club) => {
     const { id, ...data } = club;
@@ -105,7 +114,7 @@ const AdminPanel = ({ user, onClose }) => {
     e.preventDefault();
     await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'races'), newRace);
     alert("Carrera publicada.");
-    setNewRace({ name: '', date: '', distance: '', zone: 'REFORMA', link: '', city: 'CDMX' });
+    setNewRace({ name: '', date: '', distance: '', zone: '', link: '', city: 'CDMX' });
   };
 
   const handleAddZone = async () => {
@@ -145,7 +154,7 @@ const AdminPanel = ({ user, onClose }) => {
                 <div className="text-left w-full">
                   <span className="bg-turquoise text-white text-[8px] font-black px-3 py-1 rounded-full uppercase mb-2 inline-block font-black">{c.type === 'club' ? 'RUNNING CLUB' : 'MARCA / NEGOCIO'}</span>
                   <h3 className="font-black text-xl uppercase italic text-petrol">{c.name}</h3>
-                  <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest font-black">@{c.social} • {c.email}</p>
+                  <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest font-black">@{c.social} • {c.email} • {c.city}</p>
                 </div>
                 <div className="flex gap-3 shrink-0">
                    <button onClick={async () => await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs_pending', c.id))} className="p-4 text-red-300 hover:text-red-500 bg-red-50 rounded-3xl"><Trash2 size={24}/></button>
@@ -169,7 +178,7 @@ const AdminPanel = ({ user, onClose }) => {
                       <div className="p-4 bg-gray-50 rounded-2xl text-petrol">{ev.isRecurring ? <CalendarDays size={20}/> : <Zap size={20}/>}</div>
                       <div>
                         <h4 className="font-black text-lg uppercase italic leading-none">{ev.organizerName}</h4>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">{ev.day || ev.specificDate} • {ev.time} hrs • {ev.zone}</p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">{ev.day || ev.specificDate} • {ev.time} hrs • {ev.zone} ({ev.city})</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -187,14 +196,24 @@ const AdminPanel = ({ user, onClose }) => {
                    e.preventDefault();
                    await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events'), { ...indieEvent, status: 'active' });
                    alert("Sesión publicada.");
-                   setIndieEvent({ organizerName: 'Run City Hub', day: 'Lunes', time: '07:00', zone: 'REFORMA', type: 'SR', location: '', isRecurring: true });
+                   setIndieEvent({ organizerName: 'Run City Hub', day: 'Lunes', time: '07:00', city: 'CDMX', zone: '', type: 'SR', location: '', isRecurring: true });
                  }} className="space-y-4 font-black">
                    <input required placeholder="Organizador" className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none" value={indieEvent.organizerName} onChange={e => setIndieEvent({...indieEvent, organizerName: e.target.value})} />
                    <div className="grid grid-cols-2 gap-2">
                      <select className="p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs" value={indieEvent.day} onChange={e => setIndieEvent({...indieEvent, day: e.target.value})}>{dayNames.map(d => <option key={d}>{d}</option>)}</select>
                      <input type="time" className="p-4 bg-gray-50 rounded-2xl font-black outline-none" value={indieEvent.time} onChange={e => setIndieEvent({...indieEvent, time: e.target.value})} />
                    </div>
-                   <select className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none" value={indieEvent.zone} onChange={e => setIndieEvent({...indieEvent, zone: e.target.value})}>{HARDCODED_ZONES.map(z => <option key={z}>{z}</option>)}</select>
+                   
+                   <div className="grid grid-cols-2 gap-2">
+                     <select className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs" value={indieEvent.city} onChange={e => setIndieEvent({...indieEvent, city: e.target.value, zone: ''})}>
+                        {allCities.map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}
+                     </select>
+                     <select className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs" value={indieEvent.zone} onChange={e => setIndieEvent({...indieEvent, zone: e.target.value})}>
+                        <option value="">Zona...</option>
+                        {allZones.filter(z => z.city === indieEvent.city).map(z => <option key={z.id || z.name} value={z.name}>{z.name}</option>)}
+                     </select>
+                   </div>
+                   
                    <input required placeholder="Ubicación" className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none shadow-inner" value={indieEvent.location} onChange={e => setIndieEvent({...indieEvent, location: e.target.value})} />
                    <button className="w-full bg-turquoise text-white py-5 rounded-4xl font-black text-xs uppercase italic">Publicar</button>
                  </form>
@@ -241,6 +260,17 @@ const AdminPanel = ({ user, onClose }) => {
                   <input required type="date" className="w-full p-6 bg-gray-50 rounded-3xl font-black outline-none border-none shadow-inner" value={newRace.date} onChange={e => setNewRace({...newRace, date: e.target.value})} />
                   <input required placeholder="Distancia" className="w-full p-6 bg-gray-50 rounded-3xl font-black outline-none border-none shadow-inner" value={newRace.distance} onChange={e => setNewRace({...newRace, distance: e.target.value})} />
                 </div>
+                
+                <div className="grid grid-cols-2 gap-4 font-black">
+                  <select required className="w-full p-6 bg-gray-50 rounded-3xl font-black outline-none border-none text-xs" value={newRace.city} onChange={e => setNewRace({...newRace, city: e.target.value, zone: ''})}>
+                    {allCities.map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}
+                  </select>
+                  <select required className="w-full p-6 bg-gray-50 rounded-3xl font-black outline-none border-none text-xs" value={newRace.zone} onChange={e => setNewRace({...newRace, zone: e.target.value})}>
+                    <option value="">Zona...</option>
+                    {allZones.filter(z => z.city === newRace.city).map(z => <option key={z.id || z.name} value={z.name}>{z.name}</option>)}
+                  </select>
+                </div>
+
                 <input required placeholder="URL Inscripción" className="w-full p-6 bg-gray-50 rounded-3xl font-black outline-none border-none shadow-inner" value={newRace.link} onChange={e => setNewRace({...newRace, link: e.target.value})} />
                 <button className="w-full bg-petrol text-mustard py-6 rounded-6xl font-black text-xl uppercase shadow-2xl font-black italic">Publicar</button>
               </form>
@@ -249,7 +279,7 @@ const AdminPanel = ({ user, onClose }) => {
               <h3 className="text-xl font-black uppercase italic text-petrol mb-4">Metas Registradas</h3>
               {races.sort((a,b) => new Date(a.date) - new Date(b.date)).map(r => (
                 <div key={r.id} className="bg-white p-6 rounded-4xl border border-gray-100 flex justify-between items-center shadow-sm">
-                  <div><h4 className="font-black text-lg text-petrol uppercase leading-none">{r.name}</h4><p className="text-gray-400 text-[10px] font-bold uppercase mt-1">{r.date} • {r.distance}</p></div>
+                  <div><h4 className="font-black text-lg text-petrol uppercase leading-none">{r.name}</h4><p className="text-gray-400 text-[10px] font-bold uppercase mt-1">{r.date} • {r.city} • {r.distance}</p></div>
                   <button onClick={async () => await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'races', r.id))} className="p-4 text-red-200 bg-red-50 rounded-2xl"><Trash2 size={18}/></button>
                 </div>
               ))}
@@ -264,16 +294,16 @@ const AdminPanel = ({ user, onClose }) => {
               <h3 className="text-2xl font-black mb-8 uppercase italic flex items-center gap-3 text-petrol font-black tracking-tighter"><MapPin className="text-turquoise"/> Gestionar Zonas</h3>
               <div className="flex gap-4 mb-8 font-black">
                 <select className="p-4 bg-gray-50 rounded-2xl font-black text-[10px] outline-none" value={newZone.city} onChange={e => setNewZone({...newZone, city: e.target.value})}>
-                  {HARDCODED_CITIES.concat(dbCities).map(ct => <option key={ct.id || ct.name} value={ct.name}>{ct.name}</option>)}
+                  {allCities.map(ct => <option key={ct.id || ct.name} value={ct.name}>{ct.name}</option>)}
                 </select>
                 <input placeholder="Nueva Zona" className="flex-1 p-4 bg-gray-50 rounded-2xl font-black text-[10px] outline-none shadow-inner" value={newZone.name} onChange={e => setNewZone({...newZone, name: e.target.value})} />
                 <button onClick={handleAddZone} className="p-4 bg-petrol text-mustard rounded-2xl shadow-lg hover:bg-turquoise"><PlusCircle/></button>
               </div>
               <div className="space-y-3 font-black">
-                {dbZones.map(z => (
-                  <div key={z.id} className="p-4 bg-gray-50 rounded-3xl flex justify-between items-center font-black">
+                {allZones.map(z => (
+                  <div key={z.id || z.name} className="p-4 bg-gray-50 rounded-3xl flex justify-between items-center font-black">
                     <span className="text-[11px] font-black uppercase text-petrol">{z.name} <span className="opacity-30">({z.city})</span></span>
-                    <button onClick={async () => await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'zones', z.id))} className="text-red-300 font-black"><Trash2 size={16}/></button>
+                    {z.id && <button onClick={async () => await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'zones', z.id))} className="text-red-300 font-black"><Trash2 size={16}/></button>}
                   </div>
                 ))}
               </div>
@@ -285,10 +315,10 @@ const AdminPanel = ({ user, onClose }) => {
                 <button onClick={handleAddCity} className="p-4 bg-petrol text-mustard rounded-2xl shadow-lg hover:bg-turquoise font-black"><PlusCircle/></button>
               </div>
               <div className="space-y-4 font-black">
-                {dbCities.map(c => (
-                  <div key={c.id} className="p-4 bg-gray-50 rounded-3xl flex justify-between items-center font-black">
+                {allCities.map(c => (
+                  <div key={c.id || c.name} className="p-4 bg-gray-50 rounded-3xl flex justify-between items-center font-black">
                     <span className="text-[11px] font-black uppercase text-petrol">{c.name}</span>
-                    <button onClick={async () => await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'cities', c.id))} className="text-red-300 transition-colors font-black"><Trash2 size={18}/></button>
+                    {c.id && !c.id.startsWith('default') && <button onClick={async () => await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'cities', c.id))} className="text-red-300 transition-colors font-black"><Trash2 size={18}/></button>}
                   </div>
                 ))}
               </div>
@@ -305,7 +335,6 @@ const AdminPanel = ({ user, onClose }) => {
 // ==========================================
 const PublicApp = ({ user }) => {
   const [view, setView] = useState('home');
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState('CDMX');
   const [selectedZone, setSelectedZone] = useState('Todos');
   const [currentWeekStart, setCurrentWeekStart] = useState(getMonday(new Date()));
@@ -314,20 +343,40 @@ const PublicApp = ({ user }) => {
   const [clubs, setClubs] = useState([]);
   const [events, setEvents] = useState([]);
   const [races, setRaces] = useState([]);
+  const [dbCities, setDbCities] = useState([]);
+  const [dbZones, setDbZones] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Registro Público
   const [regType, setRegType] = useState('club');
+
+  // Sistema de Rutas Ocultas (Admin)
+  useEffect(() => {
+    const handleHash = () => {
+      if (window.location.hash === '#admin') setView('admin-login');
+    };
+    window.addEventListener('hashchange', handleHash);
+    handleHash(); // Revisar al inicio
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
     const unsub = [
       onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs'), s => { setClubs(s.docs.map(d => ({id:d.id, ...d.data()}))); setLoading(false); }),
       onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events'), s => setEvents(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'races'), s => setRaces(s.docs.map(d => ({id:d.id, ...d.data()}))))
+      onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'races'), s => setRaces(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'cities'), s => setDbCities(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'zones'), s => setDbZones(s.docs.map(d => ({id:d.id, ...d.data()}))))
     ];
     return () => unsub.forEach(fn => fn());
   }, [user]);
+
+  const allCities = useMemo(() => [...HARDCODED_CITIES, ...dbCities], [dbCities]);
+  const allZones = useMemo(() => [...HARDCODED_ZONES, ...dbZones], [dbZones]);
+  
+  // Zonas dinámicas según la ciudad seleccionada
+  const currentCityZones = useMemo(() => allZones.filter(z => z.city === selectedCity).map(z => z.name), [allZones, selectedCity]);
 
   const weekDates = useMemo(() => [0, 1, 2, 3, 4, 5, 6].map(i => {
     const d = new Date(currentWeekStart);
@@ -361,7 +410,7 @@ const PublicApp = ({ user }) => {
       
       <header className="bg-white/95 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-[100] px-6 py-5 shadow-sm font-black font-black">
         <div className="max-w-7xl mx-auto flex items-center justify-between font-black">
-          <div className="flex items-center cursor-pointer group font-black" onClick={() => setView('home')}>
+          <div className="flex items-center cursor-pointer group font-black" onClick={() => { window.location.hash=''; setView('home'); }}>
              <div className="w-11 h-11 md:w-14 md:h-14 bg-white rounded-2xl flex items-center justify-center mr-4 shadow-xl overflow-hidden border border-gray-100 logo-shadow group-hover:rotate-12 transition-transform font-black">
                <img src="/cityrunhublogo.png" className="w-full h-full object-contain p-1.5 font-black" alt="Logo" />
              </div>
@@ -369,18 +418,18 @@ const PublicApp = ({ user }) => {
           </div>
 
           <nav className="hidden lg:flex items-center gap-10 text-[11px] font-black uppercase tracking-[0.3em] text-gray-400 font-black">
-            <button onClick={() => setView('home')} className={view==='home'?'text-petrol':''}>Inicio</button>
-            <button onClick={() => { setView('home'); setTimeout(() => document.getElementById('agenda')?.scrollIntoView({behavior:'smooth'}), 100); }}>Calendario</button>
-            <button onClick={() => setView('races')} className={view==='races'?'text-petrol':''}>Carreras 2026</button>
-            <button onClick={() => setView('clubs')} className={view==='clubs'?'text-petrol':''}>Clubes</button>
-            <button onClick={() => setView('register')} className={view==='register'?'text-petrol':''}>Registro Club</button>
+            <button onClick={() => { window.location.hash=''; setView('home'); }} className={view==='home'?'text-petrol':''}>Inicio</button>
+            <button onClick={() => { window.location.hash=''; setView('home'); setTimeout(() => document.getElementById('agenda')?.scrollIntoView({behavior:'smooth'}), 100); }}>Calendario</button>
+            <button onClick={() => { window.location.hash=''; setView('races'); }} className={view==='races'?'text-petrol':''}>Carreras 2026</button>
+            <button onClick={() => { window.location.hash=''; setView('clubs'); }} className={view==='clubs'?'text-petrol':''}>Clubes</button>
+            <button onClick={() => { window.location.hash=''; setView('register'); }} className={view==='register'?'text-petrol':''}>Registro Club</button>
             <div className="relative flex items-center bg-gray-50 rounded-xl px-4 py-2 font-black text-petrol border border-gray-100 shadow-inner group font-black">
               <select className="bg-transparent outline-none appearance-none pr-8 cursor-pointer uppercase text-[10px] tracking-widest font-black" value={selectedCity} onChange={e => { setSelectedCity(e.target.value); setSelectedZone('Todos'); }}>
-                {HARDCODED_CITIES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                {allCities.map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-petrol font-black" size={14} />
             </div>
-            <button onClick={() => setView('register')} className="bg-petrol text-mustard px-10 py-3.5 rounded-full shadow-2xl hover:bg-turquoise hover:text-white transition-all font-black uppercase italic tracking-widest text-[12px] active:scale-95 font-black">Unirse</button>
+            <button onClick={() => { window.location.hash=''; setView('register'); }} className="bg-petrol text-mustard px-10 py-3.5 rounded-full shadow-2xl hover:bg-turquoise hover:text-white transition-all font-black uppercase italic tracking-widest text-[12px] active:scale-95 font-black">Unirse</button>
           </nav>
         </div>
       </header>
@@ -416,7 +465,7 @@ const PublicApp = ({ user }) => {
               <div className="flex flex-col gap-12 mb-20 font-black text-center font-black font-black">
                  <div className="flex flex-wrap gap-3 justify-center font-black font-black font-black">
                     <button onClick={() => setSelectedZone('Todos')} className={`px-10 py-5 rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest transition-all ${selectedZone === 'Todos' ? 'bg-petrol text-mustard shadow-xl scale-105' : 'bg-gray-50 text-gray-400 hover:bg-gray-100 font-black font-black'} font-black font-black font-black`}>Todos</button>
-                    {HARDCODED_ZONES.map(z => (
+                    {currentCityZones.map(z => (
                       <button key={z} onClick={() => setSelectedZone(z)} className={`px-10 py-5 rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest transition-all ${selectedZone === z ? 'bg-petrol text-mustard shadow-xl ring-8 ring-palemint scale-105' : 'bg-gray-50 text-gray-400 hover:bg-gray-100 font-black font-black'} font-black font-black font-black`}>{z}</button>
                     ))}
                  </div>
@@ -480,12 +529,12 @@ const PublicApp = ({ user }) => {
         <main className="max-w-7xl mx-auto px-6 py-24 animate-in slide-in-from-bottom duration-700 flex-1 text-center font-black font-black font-black font-black">
            <h2 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter text-petrol mb-24 font-black leading-none font-black font-black font-black font-black font-black">DIRECTORIO <br/><span className="text-turquoise italic font-black font-black font-black font-black font-black font-black font-black font-black font-black">DE CLUBES.</span></h2>
            <div className="grid md:grid-cols-3 gap-12 font-black font-black font-black font-black font-black">
-             {clubs.filter(c => c.type === 'club').length === 0 ? (
+             {clubs.filter(c => c.type === 'club' && c.city === selectedCity).length === 0 ? (
                 <div className="col-span-full py-20 text-center">
-                  <p className="text-gray-400 font-black uppercase italic tracking-widest">Aún no hay clubes registrados.</p>
+                  <p className="text-gray-400 font-black uppercase italic tracking-widest">Aún no hay clubes registrados en {selectedCity}.</p>
                 </div>
              ) : (
-               clubs.filter(c => c.type === 'club').map(club => (
+               clubs.filter(c => c.type === 'club' && c.city === selectedCity).map(club => (
                  <div key={club.id} className="bg-white p-12 rounded-[5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all flex flex-col items-center font-black animate-in zoom-in h-full font-black font-black">
                    <img src={club.logoUrl || "https://via.placeholder.com/200"} className="w-36 h-36 rounded-full border-[10px] border-white shadow-2xl object-cover mb-10 font-black font-black font-black font-black font-black font-black" />
                    <h3 className="text-3xl font-black mb-2 uppercase italic text-petrol font-black font-black font-black font-black font-black font-black font-black">{club.name}</h3>
@@ -515,7 +564,7 @@ const PublicApp = ({ user }) => {
                     type: 'EE', city: selectedCity, location: f.get('loc'), isRecurring: true, status: 'pending'
                 });
              }
-             alert("Solicitud enviada."); setView('home');
+             alert("Solicitud enviada."); window.location.hash=''; setView('home');
            }} className="bg-gray-50 p-16 rounded-6xl border border-gray-100 shadow-2xl space-y-12 font-black">
               <div className="flex bg-white p-2.5 rounded-4xl shadow-inner border border-gray-50 font-black">
                  <button type="button" onClick={() => setRegType('club')} className={`flex-1 py-5 rounded-[1.8rem] font-black uppercase text-[11px] ${regType==='club'?'bg-petrol text-mustard shadow-2xl scale-105 font-black font-black':'text-gray-300 font-black font-black font-black'}`}>Running Club</button>
@@ -527,13 +576,15 @@ const PublicApp = ({ user }) => {
               </div>
               {regType === 'business' && (
                 <div className="p-10 bg-white rounded-5xl border border-mustard/20 space-y-8 animate-in zoom-in duration-300 font-black font-black">
-                    <h4 className="text-xl uppercase italic text-petrol border-b border-gray-50 pb-4 font-black font-black">Primer Evento</h4>
+                    <h4 className="text-xl uppercase italic text-petrol border-b border-gray-50 pb-4 font-black font-black">Primer Evento en {selectedCity}</h4>
                     <div className="grid grid-cols-2 gap-4 font-black">
                         <select name="day" className="p-6 bg-gray-50 rounded-3xl font-black font-black font-black">{dayNames.map(d=><option key={d}>{d}</option>)}</select>
                         <input type="time" name="time" className="p-6 bg-gray-50 rounded-3xl font-black font-black font-black" defaultValue="07:00" />
                     </div>
-                    <select name="zone" className="w-full p-6 bg-gray-50 rounded-3xl font-black font-black font-black font-black font-black">{HARDCODED_ZONES.map(z=><option key={z} value={z}>{z}</option>)}</select>
-                    <input name="loc" placeholder="Lugar (Ej. Parque México)" className="w-full p-6 bg-gray-50 rounded-3xl font-black font-black font-black" />
+                    <select name="zone" className="w-full p-6 bg-gray-50 rounded-3xl font-black font-black font-black font-black font-black">
+                       {currentCityZones.length > 0 ? currentCityZones.map(z=><option key={z} value={z}>{z}</option>) : <option value="Global">Global</option>}
+                    </select>
+                    <input name="loc" placeholder="Lugar exacto (Ej. Parque México)" className="w-full p-6 bg-gray-50 rounded-3xl font-black font-black font-black" />
                 </div>
               )}
               <input required name="email" type="email" placeholder="Email de contacto" className="w-full p-8 rounded-4xl border-none font-black bg-white shadow-sm outline-none text-petrol font-black font-black font-black" />
@@ -554,12 +605,12 @@ const PublicApp = ({ user }) => {
               
               <div className="space-y-4 mb-8 bg-gray-50 p-6 rounded-4xl border border-gray-100">
                  <div className="flex items-center gap-3"><CalendarDays size={18} className="text-mustard"/><span className="text-xs font-black uppercase text-petrol">{selectedEvent.day || selectedEvent.specificDate} • {selectedEvent.time} hrs</span></div>
-                 <div className="flex items-center gap-3"><MapPin size={18} className="text-mustard"/><span className="text-xs font-black uppercase text-petrol">{selectedEvent.zone}</span></div>
+                 <div className="flex items-center gap-3"><MapPin size={18} className="text-mustard"/><span className="text-xs font-black uppercase text-petrol">{selectedEvent.zone} ({selectedEvent.city || 'CDMX'})</span></div>
                  <div className="flex items-center gap-3"><Map size={18} className="text-mustard"/><span className="text-xs font-bold text-petrol">{selectedEvent.location || 'Punto de encuentro por definir'}</span></div>
               </div>
               
               <button 
-                onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(selectedEvent.location || selectedEvent.zone)}`, '_blank')} 
+                onClick={() => window.open(`https://maps.google.com/?q=$${encodeURIComponent(selectedEvent.location || selectedEvent.zone)}`, '_blank')} 
                 className="w-full bg-petrol text-mustard py-5 rounded-full font-black uppercase tracking-widest text-[11px] flex justify-center items-center gap-3 hover:bg-turquoise hover:text-white transition-colors shadow-xl active:scale-95"
               >
                 <MapPin size={16}/> Abrir en Maps
@@ -574,27 +625,26 @@ const PublicApp = ({ user }) => {
         <div className="max-w-7xl mx-auto flex flex-col items-center gap-10 relative z-10 text-center font-black font-black font-black font-black font-black font-black">
            <div className="text-5xl md:text-8xl font-black italic tracking-tighter text-mustard/20 uppercase leading-none select-none tracking-tighter font-black font-black font-black font-black font-black">RUN CITY HUB</div>
            <nav className="flex flex-wrap justify-center gap-8 md:gap-14 text-base font-black uppercase tracking-[0.4em] text-white/60 font-bold font-black font-black font-black font-black font-black">
-              <button onClick={() => setView('home')} className="hover:text-mustard transition-colors font-black">Inicio</button>
-              <button onClick={() => { setView('home'); setTimeout(() => document.getElementById('agenda')?.scrollIntoView({behavior:'smooth'}), 100); }} className="hover:text-mustard transition-colors font-black font-black font-black">Calendario</button>
-              <button onClick={() => setView('races')} className="hover:text-mustard transition-colors font-black font-black">Carreras</button>
-              <button onClick={() => setView('clubs')} className="hover:text-mustard transition-colors font-black font-black">Clubes</button>
-              <button onClick={() => setView('register')} className="hover:text-mustard transition-colors font-black font-black">Registro Club</button>
+              <button onClick={() => { window.location.hash=''; setView('home'); }} className="hover:text-mustard transition-colors font-black">Inicio</button>
+              <button onClick={() => { window.location.hash=''; setView('home'); setTimeout(() => document.getElementById('agenda')?.scrollIntoView({behavior:'smooth'}), 100); }} className="hover:text-mustard transition-colors font-black font-black font-black">Calendario</button>
+              <button onClick={() => { window.location.hash=''; setView('races'); }} className="hover:text-mustard transition-colors font-black font-black">Carreras</button>
+              <button onClick={() => { window.location.hash=''; setView('clubs'); }} className="hover:text-mustard transition-colors font-black font-black">Clubes</button>
+              <button onClick={() => { window.location.hash=''; setView('register'); }} className="hover:text-mustard transition-colors font-black font-black">Registro Club</button>
            </nav>
            <div className="flex flex-col items-center gap-8 w-full pt-10 border-t border-white/5 font-black font-black font-black font-black font-black font-black font-black font-black">
               <div className="flex gap-14 text-white/30 font-black font-black font-black font-black font-black">
                  <a href="https://instagram.com/runcityhub" target="_blank" className="hover:text-mustard transition-all hover:scale-125 active:scale-90 font-black font-black font-black font-black font-black font-black"><Instagram size={48}/></a>
               </div>
               <p className="text-[10px] font-black text-white/20 tracking-[1.5em] uppercase italic font-bold font-black">MÉXICO • 2026</p>
-              <button onClick={() => setView('admin-login')} className="opacity-10 hover:opacity-100 transition-opacity uppercase text-[8px] font-black border border-white/20 px-10 py-3 rounded-full tracking-[0.5em] font-bold font-black font-black font-black font-black font-black font-black">ADMIN ACCESS</button>
            </div>
         </div>
       </footer>
 
-      {/* LOGIN ADMIN */}
+      {/* LOGIN ADMIN (AHORA SE ACTIVA VIA URL HASH #admin) */}
       {view === 'admin-login' && (
         <div className="fixed inset-0 z-[600] flex justify-center p-4 md:p-10 bg-petrol/98 backdrop-blur-3xl animate-in fade-in duration-500 overflow-y-auto font-black text-left font-black font-black">
            <div className="bg-white p-10 md:p-14 rounded-6xl shadow-2xl w-full max-w-md relative border-t-[30px] border-mustard my-auto font-black font-black font-black font-black">
-              <button onClick={() => setView('home')} className="absolute top-6 right-6 p-4 text-petrol bg-gray-50 rounded-full hover:bg-red-50 transition shadow-lg active:scale-90 font-black font-black font-black font-black font-black"><X size={24}/></button>
+              <button onClick={() => { window.location.hash=''; setView('home'); }} className="absolute top-6 right-6 p-4 text-petrol bg-gray-50 rounded-full hover:bg-red-50 transition shadow-lg active:scale-90 font-black font-black font-black font-black font-black"><X size={24}/></button>
               <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 text-petrol leading-none font-black italic tracking-tighter font-black font-black font-black font-black font-black">CENTRAL <br/> <span className="text-turquoise font-black font-black font-black font-black font-black font-black">ADMIN</span></h2>
               <form onSubmit={async (e) => {
                 e.preventDefault();
@@ -610,7 +660,7 @@ const PublicApp = ({ user }) => {
 
       {view === 'admin-panel' && (
         <div className="fixed inset-0 z-[700] bg-white animate-in slide-in-from-bottom duration-700 overflow-y-auto text-left font-black font-black font-black font-black font-black font-black">
-          <AdminPanel user={user} onClose={() => setView('home')} />
+          <AdminPanel user={user} onClose={() => { window.location.hash=''; setView('home'); }} />
         </div>
       )}
     </div>
