@@ -487,10 +487,17 @@ const PublicApp = ({ user }) => {
     return filteredEvents.find(e => {
       if (e.time !== time) return false;
       if (e.isRecurring) return e.day === dayName;
-      // Para eventos únicos, parsear y comparar fechas ignorando timezones y horas
-      const eventDateStr = new Date(e.specificDate + 'T12:00:00Z').toISOString().split('T')[0];
-      const slotDateStr = dateObj.toISOString().split('T')[0];
-      return eventDateStr === slotDateStr;
+      
+      // PARCH DE SEGURIDAD: Evitar que crashee si un evento viejo no tiene fecha específica
+      if (!e.specificDate) return false;
+      
+      try {
+         const eventDateStr = new Date(e.specificDate + 'T12:00:00Z').toISOString().split('T')[0];
+         const slotDateStr = dateObj.toISOString().split('T')[0];
+         return eventDateStr === slotDateStr;
+      } catch (error) {
+         return false; // Si hay error al parsear la fecha, lo ignora y sigue funcionando
+      }
     });
   };
 
@@ -670,9 +677,24 @@ const PublicApp = ({ user }) => {
                 });
              }
              
-             // 2. SIMULAR NOTIFICACIÓN DE EMAIL AL ADMIN
-             // NOTA: Para correos reales se requiere EmailJS (ej. emailjs.sendForm) o Zapier Webhooks (fetch a tu URL).
-             console.log(`[ALERTA DE SISTEMA] Nueva solicitud de: ${clubData.name} (${clubData.city}) enviada al administrador.`);
+             // 2. ENVIAR NOTIFICACIÓN REAL POR CORREO (FormSubmit)
+             // OJO: CAMBIA "tu_correo@ejemplo.com" por el correo de tu empresa.
+             try {
+                await fetch("https://formsubmit.co/ajax/pacobaga@gmail.com", {
+                    method: "POST",
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({
+                        _subject: `[ALERTA] Nuevo Registro en Run City Hub: ${clubData.name}`,
+                        Nombre: clubData.name,
+                        Tipo: clubData.type === 'club' ? 'Running Club' : 'Marca / Negocio',
+                        Ciudad: clubData.city,
+                        Instagram: `@${clubData.social}`,
+                        Email: clubData.email
+                    })
+                });
+             } catch (error) {
+                console.error("Error al enviar correo de notificación", error);
+             }
              
              if (window.confirm("Solicitud enviada con éxito. ¿Deseas registrar otra solicitud?")) {
                 e.target.reset();
