@@ -121,9 +121,18 @@ const AdminPanel = ({ user, onClose }) => {
   const allZones = useMemo(() => [...HARDCODED_ZONES, ...dbZones], [dbZones]);
 
   // --- FILTROS BASADOS EN ROL ---
-  const pendingClubs = useMemo(() => isMasterAdmin ? rawPendingClubs : rawPendingClubs.filter(c => c.city === managerCity), [rawPendingClubs, isMasterAdmin, managerCity]);
+  const pendingClubs = useMemo(() => {
+    const evs = isMasterAdmin ? rawPendingClubs : rawPendingClubs.filter(c => c.city === managerCity);
+    return [...evs].sort((a,b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0));
+  }, [rawPendingClubs, isMasterAdmin, managerCity]);
+
   const clubs = useMemo(() => isMasterAdmin ? rawClubs : rawClubs.filter(c => c.city === managerCity), [rawClubs, isMasterAdmin, managerCity]);
-  const events = useMemo(() => isMasterAdmin ? rawEvents : rawEvents.filter(e => e.city === managerCity), [rawEvents, isMasterAdmin, managerCity]);
+
+  const events = useMemo(() => {
+    const evs = isMasterAdmin ? rawEvents : rawEvents.filter(e => e.city === managerCity);
+    return [...evs].sort((a,b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0));
+  }, [rawEvents, isMasterAdmin, managerCity]);
+
   const races = useMemo(() => isMasterAdmin ? rawRaces : rawRaces.filter(r => r.city === managerCity), [rawRaces, isMasterAdmin, managerCity]);
 
   const handleApproveClub = async (club) => {
@@ -261,15 +270,20 @@ const AdminPanel = ({ user, onClose }) => {
                    if(!indieEvent.organizerName || !indieEvent.zone) return alert("Faltan datos (Organizador o Zona)");
                    if(!indieEvent.isRecurring && !indieEvent.specificDate) return alert("Selecciona una fecha específica para el evento único.");
 
-                   const eventData = { ...indieEvent, status: 'active' };
-                   // Limpiar campo no usado para mantener limpia la BD
-                   if(eventData.isRecurring) delete eventData.specificDate;
-                   else delete eventData.day;
+                   try {
+                     const eventData = { ...indieEvent, status: 'active', createdAt: new Date().toISOString() };
+                     // Limpiar campo no usado para mantener limpia la BD
+                     if(eventData.isRecurring) delete eventData.specificDate;
+                     else delete eventData.day;
 
-                   await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events'), eventData);
-                   alert("Sesión publicada.");
-                   // Reset form keeping the city
-                   setIndieEvent({ organizerName: 'Run City Hub', day: 'Lunes', specificDate: '', time: '07:00', city: indieEvent.city, zone: '', type: 'SR', location: '', isRecurring: true });
+                     await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events'), eventData);
+                     alert("Sesión publicada.");
+                     // Reset form keeping the city
+                     setIndieEvent({ organizerName: 'Run City Hub', day: 'Lunes', specificDate: '', time: '07:00', city: indieEvent.city, zone: '', type: 'SR', location: '', isRecurring: true });
+                   } catch(error) {
+                     console.error("Error adding event:", error);
+                     alert("Error al publicar: " + error.message);
+                   }
                  }} className="space-y-4 font-black">
                    
                    <input required placeholder="Organizador" className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none" value={indieEvent.organizerName} onChange={e => setIndieEvent({...indieEvent, organizerName: e.target.value})} />
@@ -438,6 +452,7 @@ const PublicApp = ({ user }) => {
   const [regType, setRegType] = useState('club');
   const [formCity, setFormCity] = useState(selectedCity); 
   const [clubDirectoryTab, setClubDirectoryTab] = useState('club');
+  const [businessEventType, setBusinessEventType] = useState('recurring');
   
   // Soporte Chatbot
   const [isSupportOpen, setIsSupportOpen] = useState(false);
@@ -492,9 +507,13 @@ const PublicApp = ({ user }) => {
       if (!e.specificDate) return false;
       
       try {
-         const eventDateStr = new Date(e.specificDate + 'T12:00:00Z').toISOString().split('T')[0];
-         const slotDateStr = dateObj.toISOString().split('T')[0];
-         return eventDateStr === slotDateStr;
+         // Comparación exacta de string YYYY-MM-DD para evitar problemas de zona horaria
+         const yyyy = dateObj.getFullYear();
+         const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+         const dd = String(dateObj.getDate()).padStart(2, '0');
+         const localDateStr = `${yyyy}-${mm}-${dd}`;
+         
+         return e.specificDate === localDateStr;
       } catch (error) {
          return false; // Si hay error al parsear la fecha, lo ignora y sigue funcionando
       }
@@ -671,10 +690,27 @@ const PublicApp = ({ user }) => {
              const clubRef = await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs_pending'), clubData);
              
              if(regType === 'business') {
-                await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events_pending'), { 
-                    clubId: clubRef.id, organizerName: f.get('name'), day: f.get('day'), time: f.get('time'), zone: f.get('zone'), 
-                    type: 'EE', city: selectedFormCity, location: f.get('loc'), isRecurring: true, status: 'pending'
-                });
+                const isRecurring = businessEventType === 'recurring';
+                const eventPayload = { 
+                    clubId: clubRef.id, 
+                    organizerName: f.get('name'), 
+                    time: f.get('time'), 
+                    zone: f.get('zone'), 
+                    type: 'EE', 
+                    city: selectedFormCity, 
+                    location: f.get('loc'), 
+                    isRecurring: isRecurring, 
+                    status: 'paused',
+                    createdAt: new Date().toISOString()
+                };
+                
+                if (isRecurring) {
+                    eventPayload.day = f.get('day');
+                } else {
+                    eventPayload.specificDate = f.get('specificDate');
+                }
+                
+                await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events'), eventPayload);
              }
              
              // 2. ENVIAR NOTIFICACIÓN REAL POR CORREO (FormSubmit)
@@ -721,15 +757,25 @@ const PublicApp = ({ user }) => {
               {regType === 'business' && (
                 <div className="p-10 bg-white rounded-5xl border border-mustard/20 space-y-8 animate-in zoom-in duration-300 font-black font-black">
                     <h4 className="text-xl uppercase italic text-petrol border-b border-gray-50 pb-4 font-black font-black">Registra tu evento</h4>
-                    <div className="grid grid-cols-2 gap-4 font-black">
-                        <select name="day" className="p-6 bg-gray-50 rounded-3xl font-black font-black font-black">{dayNames.map(d=><option key={d}>{d}</option>)}</select>
-                        <input type="time" name="time" className="p-6 bg-gray-50 rounded-3xl font-black font-black font-black" defaultValue="07:00" />
+                    
+                    <div className="flex bg-gray-50 p-2 rounded-3xl mb-6">
+                        <button type="button" onClick={() => setBusinessEventType('recurring')} className={`flex-1 py-3 text-[10px] uppercase font-black rounded-2xl transition-all ${businessEventType === 'recurring' ? 'bg-petrol text-mustard shadow-md' : 'text-gray-400 hover:text-petrol'}`}>Semanal</button>
+                        <button type="button" onClick={() => setBusinessEventType('unique')} className={`flex-1 py-3 text-[10px] uppercase font-black rounded-2xl transition-all ${businessEventType === 'unique' ? 'bg-petrol text-mustard shadow-md' : 'text-gray-400 hover:text-petrol'}`}>Evento Único</button>
                     </div>
-                    <select name="zone" className="w-full p-6 bg-gray-50 rounded-3xl font-black font-black font-black font-black font-black">
+
+                    <div className="grid grid-cols-2 gap-4 font-black">
+                        {businessEventType === 'recurring' ? (
+                            <select name="day" className="p-6 bg-gray-50 rounded-3xl font-black font-black font-black">{dayNames.map(d=><option key={d}>{d}</option>)}</select>
+                        ) : (
+                            <input required type="date" name="specificDate" className="p-6 bg-gray-50 rounded-3xl font-black font-black font-black text-gray-500" />
+                        )}
+                        <input required type="time" name="time" className="p-6 bg-gray-50 rounded-3xl font-black font-black font-black" defaultValue="07:00" />
+                    </div>
+                    <select required name="zone" className="w-full p-6 bg-gray-50 rounded-3xl font-black font-black font-black font-black font-black">
                        <option value="">Selecciona una zona...</option>
                        {formZones.length > 0 ? formZones.map(z=><option key={z} value={z}>{z}</option>) : <option value="Global">Global</option>}
                     </select>
-                    <input name="loc" placeholder="Lugar exacto (Ej. Parque México)" className="w-full p-6 bg-gray-50 rounded-3xl font-black font-black font-black" />
+                    <input required name="loc" placeholder="Lugar exacto (Ej. Parque México)" className="w-full p-6 bg-gray-50 rounded-3xl font-black font-black font-black" />
                 </div>
               )}
               <input required name="email" type="email" placeholder="Email de contacto" className="w-full p-8 rounded-4xl border-none font-black bg-white shadow-sm outline-none text-petrol font-black font-black font-black" />
