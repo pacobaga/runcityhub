@@ -3,13 +3,13 @@ import {
   Calendar as CalendarIcon, MapPin, Clock, Info, Users, PlusCircle, ChevronRight, 
   Instagram, ExternalLink, Filter, ArrowLeft, CheckCircle2, 
   AlertTriangle, Trophy, ChevronDown, Search, Bell, Loader2, X, Check, Trash2, Lock,
-  Globe, CalendarDays, Zap, Settings, Map, Store, Menu as MenuIcon, ChevronLeft, Send, Briefcase, EyeOff, Play, Pause, Edit2
+  Globe, CalendarDays, Zap, Settings, Map, Store, Menu as MenuIcon, ChevronLeft, Send, Briefcase, EyeOff, Play, Pause, Edit2, MessageCircle, Mail, Smartphone
 } from 'lucide-react';
 
 // --- FIREBASE IMPORTS ---
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 // --- CONFIGURACIÓN DE FIREBASE ---
 const firebaseConfig = {
@@ -26,6 +26,16 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const FIREBASE_APP_ID = 'city-run-hub-prod';
+
+// --- ROLES DE ADMINISTRADOR (Simulados para el frontend) ---
+// En producción, esto debería ir en Firebase Custom Claims o una colección segura
+const ADMIN_ROLES = {
+  'admin@cityrunhub.mx': { role: 'master', city: 'ALL' },
+  'pachuca@cityrunhub.mx': { role: 'city_manager', city: 'Pachuca' },
+  'qro@cityrunhub.mx': { role: 'city_manager', city: 'Querétaro' },
+  'mty@cityrunhub.mx': { role: 'city_manager', city: 'Monterrey' },
+  'gdl@cityrunhub.mx': { role: 'city_manager', city: 'Guadalajara' }
+};
 
 // --- DATOS MAESTROS ---
 const HARDCODED_CITIES = [
@@ -70,26 +80,37 @@ const getMonday = (d) => {
 // ==========================================
 const AdminPanel = ({ user, onClose }) => {
   const [activeTab, setActiveTab] = useState('requests');
-  const [pendingClubs, setPendingClubs] = useState([]);
-  const [clubs, setClubs] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [races, setRaces] = useState([]);
+  
+  // Datos crudos de Firebase
+  const [rawPendingClubs, setRawPendingClubs] = useState([]);
+  const [rawClubs, setRawClubs] = useState([]);
+  const [rawEvents, setRawEvents] = useState([]);
+  const [rawRaces, setRawRaces] = useState([]);
+  
   const [dbCities, setDbCities] = useState([]);
   const [dbZones, setDbZones] = useState([]);
   
-  const [newClub, setNewClub] = useState({ name: '', social: '', email: '', type: 'club', city: 'CDMX' });
-  const [newRace, setNewRace] = useState({ name: '', date: '', distance: '', zone: '', link: '', city: 'CDMX' });
+  // Determinar el Rol del Usuario Actual
+  const userRoleInfo = ADMIN_ROLES[user.email] || { role: 'master', city: 'ALL' }; // Default a master si no está en la lista (para ti)
+  const isMasterAdmin = userRoleInfo.role === 'master';
+  const managerCity = userRoleInfo.city;
+
+  // Estados de formularios
+  const [newRace, setNewRace] = useState({ name: '', date: '', distance: '', zone: '', link: '', city: isMasterAdmin ? 'CDMX' : managerCity });
   const [newCity, setNewCity] = useState('');
-  const [newZone, setNewZone] = useState({ name: '', city: 'CDMX' });
-  const [indieEvent, setIndieEvent] = useState({ organizerName: 'Run City Hub', day: 'Lunes', time: '07:00', city: 'CDMX', zone: '', type: 'SR', location: '', isRecurring: true });
+  const [newZone, setNewZone] = useState({ name: '', city: isMasterAdmin ? 'CDMX' : managerCity });
+  const [indieEvent, setIndieEvent] = useState({ 
+    organizerName: 'Run City Hub', day: 'Lunes', specificDate: '', time: '07:00', 
+    city: isMasterAdmin ? 'CDMX' : managerCity, zone: '', type: 'SR', location: '', isRecurring: true 
+  });
 
   useEffect(() => {
     if (!user) return;
     const unsub = [
-      onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs_pending'), s => setPendingClubs(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs'), s => setClubs(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events'), s => setEvents(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'races'), s => setRaces(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs_pending'), s => setRawPendingClubs(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs'), s => setRawClubs(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events'), s => setRawEvents(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'races'), s => setRawRaces(s.docs.map(d => ({id:d.id, ...d.data()})))),
       onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'cities'), s => setDbCities(s.docs.map(d => ({id:d.id, ...d.data()})))),
       onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'zones'), s => setDbZones(s.docs.map(d => ({id:d.id, ...d.data()}))))
     ];
@@ -98,6 +119,12 @@ const AdminPanel = ({ user, onClose }) => {
 
   const allCities = useMemo(() => [...HARDCODED_CITIES, ...dbCities], [dbCities]);
   const allZones = useMemo(() => [...HARDCODED_ZONES, ...dbZones], [dbZones]);
+
+  // --- FILTROS BASADOS EN ROL ---
+  const pendingClubs = useMemo(() => isMasterAdmin ? rawPendingClubs : rawPendingClubs.filter(c => c.city === managerCity), [rawPendingClubs, isMasterAdmin, managerCity]);
+  const clubs = useMemo(() => isMasterAdmin ? rawClubs : rawClubs.filter(c => c.city === managerCity), [rawClubs, isMasterAdmin, managerCity]);
+  const events = useMemo(() => isMasterAdmin ? rawEvents : rawEvents.filter(e => e.city === managerCity), [rawEvents, isMasterAdmin, managerCity]);
+  const races = useMemo(() => isMasterAdmin ? rawRaces : rawRaces.filter(r => r.city === managerCity), [rawRaces, isMasterAdmin, managerCity]);
 
   const handleApproveClub = async (club) => {
     const { id, ...data } = club;
@@ -115,7 +142,7 @@ const AdminPanel = ({ user, onClose }) => {
     e.preventDefault();
     await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'races'), newRace);
     alert("Carrera publicada.");
-    setNewRace({ name: '', date: '', distance: '', zone: '', link: '', city: 'CDMX' });
+    setNewRace({ name: '', date: '', distance: '', zone: '', link: '', city: isMasterAdmin ? 'CDMX' : managerCity });
   };
 
   const handleAddZone = async () => {
@@ -133,14 +160,28 @@ const AdminPanel = ({ user, onClose }) => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-left font-black">
       <nav className="bg-petrol text-white p-6 flex flex-col md:flex-row justify-between items-center shadow-2xl px-12 gap-6 sticky top-0 z-50">
-        <h2 className="text-2xl font-black uppercase italic tracking-tighter leading-none">CENTRO DE <span className="text-mustard">MANDOS</span></h2>
-        <div className="flex flex-wrap justify-center gap-2">
-          <button onClick={() => setActiveTab('requests')} className={`px-4 py-2 rounded-full text-[10px] uppercase ${activeTab === 'requests' ? 'bg-mustard text-petrol shadow-lg' : 'bg-white/10'}`}>Solicitudes ({pendingClubs.length})</button>
+        <div>
+          <h2 className="text-2xl font-black uppercase italic tracking-tighter leading-none">CENTRO DE <span className="text-mustard">MANDOS</span></h2>
+          {!isMasterAdmin && <p className="text-[10px] text-turquoise uppercase tracking-widest mt-1">CITY MANAGER: {managerCity}</p>}
+        </div>
+        
+        <div className="flex flex-wrap justify-center gap-2 items-center">
+          <button onClick={() => setActiveTab('requests')} className={`relative px-4 py-2 rounded-full text-[10px] uppercase transition-all ${activeTab === 'requests' ? 'bg-mustard text-petrol shadow-lg' : 'bg-white/10'}`}>
+            Solicitudes
+            {pendingClubs.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 flex items-center justify-center rounded-full text-[9px] font-black animate-pulse">
+                {pendingClubs.length}
+              </span>
+            )}
+          </button>
           <button onClick={() => setActiveTab('events_manage')} className={`px-4 py-2 rounded-full text-[10px] uppercase ${activeTab === 'events_manage' ? 'bg-mustard text-petrol shadow-lg' : 'bg-white/10'}`}>Sesiones</button>
           <button onClick={() => setActiveTab('clubs_manage')} className={`px-4 py-2 rounded-full text-[10px] uppercase ${activeTab === 'clubs_manage' ? 'bg-mustard text-petrol shadow-lg' : 'bg-white/10'}`}>Clubes</button>
           <button onClick={() => setActiveTab('races_manage')} className={`px-4 py-2 rounded-full text-[10px] uppercase ${activeTab === 'races_manage' ? 'bg-mustard text-petrol shadow-lg' : 'bg-white/10'}`}>Carreras</button>
-          <button onClick={() => setActiveTab('config')} className={`px-4 py-2 rounded-full text-[10px] uppercase ${activeTab === 'config' ? 'bg-mustard text-petrol shadow-lg' : 'bg-white/10'}`}>Zonas/Ciudades</button>
-          <button onClick={onClose} className="px-6 py-2 bg-red-500 text-white rounded-full font-black text-[10px] uppercase">Cerrar</button>
+          
+          {isMasterAdmin && (
+            <button onClick={() => setActiveTab('config')} className={`px-4 py-2 rounded-full text-[10px] uppercase ${activeTab === 'config' ? 'bg-mustard text-petrol shadow-lg' : 'bg-white/10'}`}>Zonas/Ciudades</button>
+          )}
+          <button onClick={onClose} className="ml-4 px-6 py-2 bg-red-500 text-white rounded-full font-black text-[10px] uppercase hover:bg-red-600 transition-colors">Cerrar</button>
         </div>
       </nav>
 
@@ -163,60 +204,105 @@ const AdminPanel = ({ user, onClose }) => {
                 </div>
               </div>
             ))}
-            {pendingClubs.length === 0 && <p className="text-center py-20 text-gray-300 italic uppercase">Sin pendientes</p>}
+            {pendingClubs.length === 0 && <p className="text-center py-20 text-gray-300 italic uppercase">Sin pendientes en tu jurisdicción</p>}
           </div>
         )}
 
         {/* TAB: SESIONES */}
         {activeTab === 'events_manage' && (
           <div className="grid md:grid-cols-12 gap-12 text-left font-black">
-            <div className="md:col-span-8 space-y-6">
+            <div className="md:col-span-7 space-y-6">
               <h3 className="text-2xl font-black uppercase italic border-b-4 border-mustard pb-2 inline-block">Gestión de Sesiones</h3>
-              <div className="grid gap-4 max-h-[70vh] overflow-y-auto no-scrollbar">
+              <div className="grid gap-4 max-h-[70vh] overflow-y-auto no-scrollbar pr-4">
                 {events.map(ev => (
                   <div key={ev.id} className={`bg-white p-6 rounded-[2.5rem] shadow-sm flex justify-between items-center border border-gray-100 ${ev.status === 'paused' ? 'opacity-50 grayscale bg-gray-50' : ''}`}>
                     <div className="flex items-center gap-5">
                       <div className="p-4 bg-gray-50 rounded-2xl text-petrol">{ev.isRecurring ? <CalendarDays size={20}/> : <Zap size={20}/>}</div>
                       <div>
-                        <h4 className="font-black text-lg uppercase italic leading-none">{ev.organizerName}</h4>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">{ev.day || ev.specificDate} • {ev.time} hrs • {ev.zone} ({ev.city})</p>
+                        <h4 className="font-black text-lg uppercase italic leading-none">{ev.organizerName || 'Evento Indie'}</h4>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">
+                          {ev.isRecurring ? `TODOS LOS ${ev.day}` : ev.specificDate} • {ev.time} hrs • {ev.zone} ({ev.city})
+                        </p>
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => handleToggleEvent(ev)} className={`p-3 rounded-2xl ${ev.status === 'paused' ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'}`}>{ev.status === 'paused' ? <Play size={20}/> : <Pause size={20}/>}</button>
-                      <button onClick={async () => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events', ev.id)) }} className="p-3 bg-red-50 text-red-300 rounded-2xl"><Trash2 size={20}/></button>
+                      <button onClick={async () => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events', ev.id)) }} className="p-3 bg-red-50 text-red-300 rounded-2xl hover:bg-red-100 transition-colors"><Trash2 size={20}/></button>
                     </div>
                   </div>
                 ))}
+                {events.length === 0 && <p className="text-gray-400 italic">No hay sesiones activas.</p>}
               </div>
             </div>
-            <div className="md:col-span-4">
-               <div className="bg-white p-10 rounded-6xl shadow-xl border border-gray-100 sticky top-32">
+
+            <div className="md:col-span-5">
+               <div className="bg-white p-8 rounded-6xl shadow-xl border border-gray-100 sticky top-32">
                  <h3 className="text-xl font-black mb-6 uppercase italic text-petrol flex items-center gap-3"><Zap className="text-turquoise"/> Evento Indie</h3>
+                 
+                 {/* Selector de Tipo de Evento */}
+                 <div className="flex bg-gray-50 p-2 rounded-3xl mb-6">
+                    <button 
+                      className={`flex-1 py-3 text-[10px] uppercase font-black rounded-2xl transition-all ${indieEvent.isRecurring ? 'bg-petrol text-mustard shadow-md' : 'text-gray-400'}`}
+                      onClick={() => setIndieEvent({...indieEvent, isRecurring: true})}
+                    >
+                      Semanal
+                    </button>
+                    <button 
+                      className={`flex-1 py-3 text-[10px] uppercase font-black rounded-2xl transition-all ${!indieEvent.isRecurring ? 'bg-petrol text-mustard shadow-md' : 'text-gray-400'}`}
+                      onClick={() => setIndieEvent({...indieEvent, isRecurring: false})}
+                    >
+                      Evento Único
+                    </button>
+                 </div>
+
                  <form onSubmit={async (e) => {
                    e.preventDefault();
-                   await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events'), { ...indieEvent, status: 'active' });
+                   // Validación básica
+                   if(!indieEvent.organizerName || !indieEvent.zone) return alert("Faltan datos (Organizador o Zona)");
+                   if(!indieEvent.isRecurring && !indieEvent.specificDate) return alert("Selecciona una fecha específica para el evento único.");
+
+                   const eventData = { ...indieEvent, status: 'active' };
+                   // Limpiar campo no usado para mantener limpia la BD
+                   if(eventData.isRecurring) delete eventData.specificDate;
+                   else delete eventData.day;
+
+                   await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events'), eventData);
                    alert("Sesión publicada.");
-                   setIndieEvent({ organizerName: 'Run City Hub', day: 'Lunes', time: '07:00', city: 'CDMX', zone: '', type: 'SR', location: '', isRecurring: true });
+                   // Reset form keeping the city
+                   setIndieEvent({ organizerName: 'Run City Hub', day: 'Lunes', specificDate: '', time: '07:00', city: indieEvent.city, zone: '', type: 'SR', location: '', isRecurring: true });
                  }} className="space-y-4 font-black">
+                   
                    <input required placeholder="Organizador" className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none" value={indieEvent.organizerName} onChange={e => setIndieEvent({...indieEvent, organizerName: e.target.value})} />
+                   
                    <div className="grid grid-cols-2 gap-2">
-                     <select className="p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs" value={indieEvent.day} onChange={e => setIndieEvent({...indieEvent, day: e.target.value})}>{dayNames.map(d => <option key={d}>{d}</option>)}</select>
+                     {indieEvent.isRecurring ? (
+                       <select className="p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs" value={indieEvent.day} onChange={e => setIndieEvent({...indieEvent, day: e.target.value})}>
+                          {dayNames.map(d => <option key={d}>{d}</option>)}
+                       </select>
+                     ) : (
+                       <input required type="date" className="p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs text-gray-500" value={indieEvent.specificDate} onChange={e => setIndieEvent({...indieEvent, specificDate: e.target.value})} />
+                     )}
                      <input type="time" className="p-4 bg-gray-50 rounded-2xl font-black outline-none" value={indieEvent.time} onChange={e => setIndieEvent({...indieEvent, time: e.target.value})} />
                    </div>
                    
                    <div className="grid grid-cols-2 gap-2">
-                     <select className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs" value={indieEvent.city} onChange={e => setIndieEvent({...indieEvent, city: e.target.value, zone: ''})}>
+                     <select 
+                        disabled={!isMasterAdmin} 
+                        className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs disabled:opacity-50" 
+                        value={indieEvent.city} 
+                        onChange={e => setIndieEvent({...indieEvent, city: e.target.value, zone: ''})}
+                      >
                         {allCities.map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}
                      </select>
-                     <select className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs" value={indieEvent.zone} onChange={e => setIndieEvent({...indieEvent, zone: e.target.value})}>
+                     <select required className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs" value={indieEvent.zone} onChange={e => setIndieEvent({...indieEvent, zone: e.target.value})}>
                         <option value="">Zona...</option>
                         {allZones.filter(z => z.city === indieEvent.city).map(z => <option key={z.id || z.name} value={z.name}>{z.name}</option>)}
                      </select>
                    </div>
                    
                    <input required placeholder="Ubicación" className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none shadow-inner" value={indieEvent.location} onChange={e => setIndieEvent({...indieEvent, location: e.target.value})} />
-                   <button className="w-full bg-turquoise text-white py-5 rounded-4xl font-black text-xs uppercase italic">Publicar</button>
+                   
+                   <button className="w-full bg-turquoise text-white py-5 rounded-4xl font-black text-xs uppercase italic hover:bg-teal-500 transition-colors shadow-lg active:scale-95">Publicar</button>
                  </form>
                </div>
             </div>
@@ -242,7 +328,7 @@ const AdminPanel = ({ user, onClose }) => {
                         const n = prompt("Nuevo nombre:", c.name);
                         if(n) await updateDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs', c.id), { name: n });
                       }} className="p-3 bg-gray-50 rounded-xl"><Edit2 size={16}/></button>
-                      <button onClick={async () => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs', c.id)) }} className="p-3 bg-red-50 text-red-300 rounded-xl"><Trash2 size={16}/></button>
+                      <button onClick={async () => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs', c.id)) }} className="p-3 bg-red-50 text-red-300 rounded-xl hover:bg-red-100"><Trash2 size={16}/></button>
                    </div>
                 </div>
               ))}
@@ -258,12 +344,12 @@ const AdminPanel = ({ user, onClose }) => {
               <form onSubmit={handleAddRace} className="space-y-6">
                 <input required placeholder="Nombre Carrera" className="w-full p-6 bg-gray-50 rounded-3xl font-black outline-none border-none shadow-inner" value={newRace.name} onChange={e => setNewRace({...newRace, name: e.target.value})} />
                 <div className="grid grid-cols-2 gap-4 font-black">
-                  <input required type="date" className="w-full p-6 bg-gray-50 rounded-3xl font-black outline-none border-none shadow-inner" value={newRace.date} onChange={e => setNewRace({...newRace, date: e.target.value})} />
+                  <input required type="date" className="w-full p-6 bg-gray-50 rounded-3xl font-black outline-none border-none shadow-inner text-gray-500" value={newRace.date} onChange={e => setNewRace({...newRace, date: e.target.value})} />
                   <input required placeholder="Distancia" className="w-full p-6 bg-gray-50 rounded-3xl font-black outline-none border-none shadow-inner" value={newRace.distance} onChange={e => setNewRace({...newRace, distance: e.target.value})} />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 font-black">
-                  <select required className="w-full p-6 bg-gray-50 rounded-3xl font-black outline-none border-none text-xs" value={newRace.city} onChange={e => setNewRace({...newRace, city: e.target.value, zone: ''})}>
+                  <select disabled={!isMasterAdmin} required className="w-full p-6 bg-gray-50 rounded-3xl font-black outline-none border-none text-xs disabled:opacity-50" value={newRace.city} onChange={e => setNewRace({...newRace, city: e.target.value, zone: ''})}>
                     {allCities.map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}
                   </select>
                   <select required className="w-full p-6 bg-gray-50 rounded-3xl font-black outline-none border-none text-xs" value={newRace.zone} onChange={e => setNewRace({...newRace, zone: e.target.value})}>
@@ -273,23 +359,23 @@ const AdminPanel = ({ user, onClose }) => {
                 </div>
 
                 <input required placeholder="URL Inscripción" className="w-full p-6 bg-gray-50 rounded-3xl font-black outline-none border-none shadow-inner" value={newRace.link} onChange={e => setNewRace({...newRace, link: e.target.value})} />
-                <button className="w-full bg-petrol text-mustard py-6 rounded-6xl font-black text-xl uppercase shadow-2xl font-black italic">Publicar</button>
+                <button className="w-full bg-petrol text-mustard py-6 rounded-6xl font-black text-xl uppercase shadow-2xl font-black italic hover:bg-petrol/90 active:scale-95 transition-transform">Publicar</button>
               </form>
             </div>
-            <div className="space-y-4 max-h-[600px] overflow-y-auto no-scrollbar font-black text-left">
+            <div className="space-y-4 max-h-[600px] overflow-y-auto no-scrollbar font-black text-left pr-4">
               <h3 className="text-xl font-black uppercase italic text-petrol mb-4">Metas Registradas</h3>
               {races.sort((a,b) => new Date(a.date) - new Date(b.date)).map(r => (
                 <div key={r.id} className="bg-white p-6 rounded-4xl border border-gray-100 flex justify-between items-center shadow-sm">
                   <div><h4 className="font-black text-lg text-petrol uppercase leading-none">{r.name}</h4><p className="text-gray-400 text-[10px] font-bold uppercase mt-1">{r.date} • {r.city} • {r.distance}</p></div>
-                  <button onClick={async () => await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'races', r.id))} className="p-4 text-red-200 bg-red-50 rounded-2xl"><Trash2 size={18}/></button>
+                  <button onClick={async () => await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'races', r.id))} className="p-4 text-red-200 bg-red-50 rounded-2xl hover:bg-red-100"><Trash2 size={18}/></button>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* TAB: CONFIGURACIÓN */}
-        {activeTab === 'config' && (
+        {/* TAB: CONFIGURACIÓN (SOLO MASTER ADMIN) */}
+        {activeTab === 'config' && isMasterAdmin && (
           <div className="grid md:grid-cols-2 gap-12 text-left font-black">
             <div className="bg-white p-12 rounded-6xl shadow-xl border border-gray-100 font-black">
               <h3 className="text-2xl font-black mb-8 uppercase italic flex items-center gap-3 text-petrol font-black tracking-tighter"><MapPin className="text-turquoise"/> Gestionar Zonas</h3>
@@ -300,7 +386,7 @@ const AdminPanel = ({ user, onClose }) => {
                 <input placeholder="Nueva Zona" className="flex-1 p-4 bg-gray-50 rounded-2xl font-black text-[10px] outline-none shadow-inner" value={newZone.name} onChange={e => setNewZone({...newZone, name: e.target.value})} />
                 <button onClick={handleAddZone} className="p-4 bg-petrol text-mustard rounded-2xl shadow-lg hover:bg-turquoise"><PlusCircle/></button>
               </div>
-              <div className="space-y-3 font-black">
+              <div className="space-y-3 font-black max-h-[400px] overflow-y-auto pr-2">
                 {allZones.map(z => (
                   <div key={z.id || z.name} className="p-4 bg-gray-50 rounded-3xl flex justify-between items-center font-black">
                     <span className="text-[11px] font-black uppercase text-petrol">{z.name} <span className="opacity-30">({z.city})</span></span>
@@ -351,7 +437,10 @@ const PublicApp = ({ user }) => {
   // Registro Público y Filtros
   const [regType, setRegType] = useState('club');
   const [formCity, setFormCity] = useState(selectedCity); 
-  const [clubDirectoryTab, setClubDirectoryTab] = useState('club'); // Filtro 'club' o 'business' para el directorio
+  const [clubDirectoryTab, setClubDirectoryTab] = useState('club');
+  
+  // Soporte Chatbot
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
 
   // Sistema de Rutas Ocultas (Admin)
   useEffect(() => {
@@ -378,10 +467,7 @@ const PublicApp = ({ user }) => {
   const allCities = useMemo(() => [...HARDCODED_CITIES, ...dbCities], [dbCities]);
   const allZones = useMemo(() => [...HARDCODED_ZONES, ...dbZones], [dbZones]);
   
-  // Zonas dinámicas según la ciudad seleccionada en el navegador principal
   const currentCityZones = useMemo(() => allZones.filter(z => z.city === selectedCity).map(z => z.name), [allZones, selectedCity]);
-
-  // Zonas dinámicas según la ciudad seleccionada en el FORMULARIO DE REGISTRO
   const formZones = useMemo(() => allZones.filter(z => z.city === formCity).map(z => z.name), [allZones, formCity]);
 
   const weekDates = useMemo(() => [0, 1, 2, 3, 4, 5, 6].map(i => {
@@ -401,7 +487,10 @@ const PublicApp = ({ user }) => {
     return filteredEvents.find(e => {
       if (e.time !== time) return false;
       if (e.isRecurring) return e.day === dayName;
-      return new Date(e.specificDate).toDateString() === dateObj.toDateString();
+      // Para eventos únicos, parsear y comparar fechas ignorando timezones y horas
+      const eventDateStr = new Date(e.specificDate + 'T12:00:00Z').toISOString().split('T')[0];
+      const slotDateStr = dateObj.toISOString().split('T')[0];
+      return eventDateStr === slotDateStr;
     });
   };
 
@@ -412,7 +501,7 @@ const PublicApp = ({ user }) => {
   if (loading) return <div className="h-screen flex items-center justify-center font-black text-petrol uppercase tracking-[0.5em] animate-pulse italic">Cargando Hub...</div>;
 
   return (
-    <div className="min-h-screen bg-white text-petrol font-sans flex flex-col transition-all text-center font-black overflow-x-hidden">
+    <div className="min-h-screen bg-white text-petrol font-sans flex flex-col transition-all text-center font-black overflow-x-hidden relative">
       
       <header className="bg-white/95 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-[100] px-6 py-5 shadow-sm font-black font-black">
         <div className="max-w-7xl mx-auto flex items-center justify-between font-black">
@@ -570,6 +659,8 @@ const PublicApp = ({ user }) => {
              const f = new FormData(e.target);
              const selectedFormCity = f.get('city');
              const clubData = { name: f.get('name'), social: f.get('social'), email: f.get('email'), city: selectedFormCity, type: regType, status: 'pending', createdAt: new Date().toISOString() };
+             
+             // 1. Guardar en Base de Datos
              const clubRef = await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs_pending'), clubData);
              
              if(regType === 'business') {
@@ -578,6 +669,10 @@ const PublicApp = ({ user }) => {
                     type: 'EE', city: selectedFormCity, location: f.get('loc'), isRecurring: true, status: 'pending'
                 });
              }
+             
+             // 2. SIMULAR NOTIFICACIÓN DE EMAIL AL ADMIN
+             // NOTA: Para correos reales se requiere EmailJS (ej. emailjs.sendForm) o Zapier Webhooks (fetch a tu URL).
+             console.log(`[ALERTA DE SISTEMA] Nueva solicitud de: ${clubData.name} (${clubData.city}) enviada al administrador.`);
              
              if (window.confirm("Solicitud enviada con éxito. ¿Deseas registrar otra solicitud?")) {
                 e.target.reset();
@@ -591,7 +686,7 @@ const PublicApp = ({ user }) => {
               </div>
               <div className="grid md:grid-cols-2 gap-10 font-black text-left font-black font-black">
                 <div className="space-y-3 font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-bold font-black font-black">Nombre Oficial</label><input required name="name" className="w-full p-8 rounded-4xl border-none font-black bg-white shadow-sm outline-none text-petrol font-black font-black" /></div>
-                <div className="space-y-3 font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-bold font-black font-black">Instagram (@)</label><input required name="social" placeholder="usuario" className="w-full p-8 rounded-4xl border-none font-black bg-white shadow-sm outline-none text-petrol font-black font-black" /></div>
+                <div className="space-y-3 font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-bold font-black font-black">Instagram (@)</label><input required name="social" placeholder="usuario sin @" className="w-full p-8 rounded-4xl border-none font-black bg-white shadow-sm outline-none text-petrol font-black font-black" /></div>
               </div>
               
               <div className="space-y-3 font-black font-black">
@@ -632,7 +727,7 @@ const PublicApp = ({ user }) => {
               <p className="text-xs font-bold text-gray-400 mb-8 uppercase tracking-widest">{selectedEvent.distance || 'Social Run'}</p>
               
               <div className="space-y-4 mb-8 bg-gray-50 p-6 rounded-4xl border border-gray-100">
-                 <div className="flex items-center gap-3"><CalendarDays size={18} className="text-mustard"/><span className="text-xs font-black uppercase text-petrol">{selectedEvent.day || selectedEvent.specificDate} • {selectedEvent.time} hrs</span></div>
+                 <div className="flex items-center gap-3"><CalendarDays size={18} className="text-mustard"/><span className="text-xs font-black uppercase text-petrol">{selectedEvent.isRecurring ? `TODOS LOS ${selectedEvent.day}` : selectedEvent.specificDate} • {selectedEvent.time} hrs</span></div>
                  <div className="flex items-center gap-3"><MapPin size={18} className="text-mustard"/><span className="text-xs font-black uppercase text-petrol">{selectedEvent.zone} ({selectedEvent.city || 'CDMX'})</span></div>
                  <div className="flex items-center gap-3"><Map size={18} className="text-mustard"/><span className="text-xs font-bold text-petrol">{selectedEvent.location || 'Punto de encuentro por definir'}</span></div>
               </div>
@@ -646,6 +741,29 @@ const PublicApp = ({ user }) => {
            </div>
         </div>
       )}
+
+      {/* BOTÓN FLOTANTE DE SOPORTE / CHATBOT */}
+      <div className="fixed bottom-6 right-6 z-[200]">
+        {isSupportOpen && (
+          <div className="absolute bottom-20 right-0 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100 p-4 animate-in slide-in-from-bottom-2 duration-200">
+            <h4 className="text-xs font-black uppercase tracking-widest text-petrol mb-4 border-b pb-2">Atención a Corredores</h4>
+            <div className="space-y-2">
+              <a href="https://wa.me/525500000000" target="_blank" rel="noreferrer" className="flex items-center gap-3 w-full p-3 bg-green-50 text-green-700 hover:bg-green-100 rounded-xl transition-colors font-bold text-sm">
+                <Smartphone size={18}/> WhatsApp
+              </a>
+              <a href="mailto:soporte@cityrunhub.mx" className="flex items-center gap-3 w-full p-3 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl transition-colors font-bold text-sm">
+                <Mail size={18}/> Correo
+              </a>
+            </div>
+          </div>
+        )}
+        <button 
+          onClick={() => setIsSupportOpen(!isSupportOpen)}
+          className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-xl transition-all hover:scale-110 active:scale-95 ${isSupportOpen ? 'bg-red-500' : 'bg-petrol'}`}
+        >
+          {isSupportOpen ? <X size={24} /> : <MessageCircle size={24} />}
+        </button>
+      </div>
 
       {/* FOOTER */}
       <footer className="bg-petrol text-white py-24 mt-auto rounded-t-6xl relative overflow-hidden px-8 text-center font-black shadow-[0_-50px_100px_-20px_rgba(27,67,83,0.1)] font-black font-black">
