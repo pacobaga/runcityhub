@@ -278,7 +278,12 @@ const AdminPanel = ({ user, onClose }) => {
                    }
                  }} className="space-y-4 font-black">
                    
-                   <input required placeholder="Organizador" className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none" value={indieEvent.organizerName} onChange={e => setIndieEvent({...indieEvent, organizerName: e.target.value})} />
+                   <div className="grid grid-cols-2 gap-2">
+                     <select className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs" value={indieEvent.type} onChange={e => setIndieEvent({...indieEvent, type: e.target.value})}>
+                       {Object.entries(RUN_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                     </select>
+                     <input required placeholder="Organizador" className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none" value={indieEvent.organizerName} onChange={e => setIndieEvent({...indieEvent, organizerName: e.target.value})} />
+                   </div>
                    
                    <div className="grid grid-cols-2 gap-2">
                      {indieEvent.isRecurring ? (
@@ -592,7 +597,7 @@ const PublicApp = ({ user }) => {
               </div>
 
               <div className="space-y-24 text-left font-black font-black">
-                 {[{t: 'MAÑANA', times: ["06:00", "07:00", "08:00", "08:30"], color: 'bg-petrol'}, {t: 'TARDE', times: ["18:00", "19:00", "20:00", "20:30"], color: 'bg-turquoise'}].map(sec => (
+                 {[{t: 'MAÑANA', times: ["05:30", "06:00", "06:30", "07:00", "07:30", "08:00", "08:30", "09:00"], color: 'bg-petrol'}, {t: 'TARDE', times: ["17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00"], color: 'bg-turquoise'}].map(sec => (
                    <div key={sec.t} className="bg-white rounded-[4rem] md:rounded-[5rem] shadow-[0_40px_80px_-20px_rgba(27,67,83,0.08)] overflow-hidden border border-gray-100 text-left font-black font-black">
                       <div className={`${sec.color} p-10 md:p-12 text-white flex justify-between items-center font-black font-black`}><h3 className="text-4xl font-black uppercase italic leading-none tracking-tighter font-black font-black font-black">{sec.t}</h3><span className="bg-white/10 px-8 py-3 rounded-full font-black text-[11px] uppercase tracking-[0.4em] backdrop-blur-md font-black font-black">{selectedCity}</span></div>
                       <div className="overflow-x-auto no-scrollbar font-black font-black">
@@ -682,7 +687,7 @@ const PublicApp = ({ user }) => {
                     organizerName: f.get('name'), 
                     time: f.get('time'), 
                     zone: f.get('zone'), 
-                    type: 'EE', 
+                    type: f.get('eventType') || 'EE', // Capturamos el tipo de evento elegido
                     city: selectedFormCity, 
                     location: f.get('loc'), 
                     isRecurring: isRecurring, 
@@ -758,10 +763,18 @@ const PublicApp = ({ user }) => {
                         )}
                         <input required type="time" name="time" className="p-6 bg-gray-50 rounded-3xl font-black font-black font-black" defaultValue="07:00" />
                     </div>
-                    <select required name="zone" className="w-full p-6 bg-gray-50 rounded-3xl font-black font-black font-black font-black font-black">
-                       <option value="">Selecciona una zona...</option>
-                       {formZones.length > 0 ? formZones.map(z=><option key={z} value={z}>{z}</option>) : <option value="Global">Global</option>}
-                    </select>
+                    
+                    <div className="grid grid-cols-2 gap-4 font-black">
+                       <select required name="eventType" className="w-full p-6 bg-gray-50 rounded-3xl font-black font-black font-black font-black font-black">
+                          <option value="">Tipo de Evento...</option>
+                          {Object.entries(RUN_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                       </select>
+                       <select required name="zone" className="w-full p-6 bg-gray-50 rounded-3xl font-black font-black font-black font-black font-black">
+                          <option value="">Selecciona una zona...</option>
+                          {formZones.length > 0 ? formZones.map(z=><option key={z} value={z}>{z}</option>) : <option value="Global">Global</option>}
+                       </select>
+                    </div>
+                    
                     <input required name="loc" placeholder="Lugar exacto (Ej. Parque México)" className="w-full p-6 bg-gray-50 rounded-3xl font-black font-black font-black" />
                 </div>
               )}
