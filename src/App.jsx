@@ -28,7 +28,6 @@ const db = getFirestore(app);
 const FIREBASE_APP_ID = 'city-run-hub-prod';
 
 // --- ROLES DE ADMINISTRADOR (Simulados para el frontend) ---
-// En producción, esto debería ir en Firebase Custom Claims o una colección segura
 const ADMIN_ROLES = {
   'admin@cityrunhub.mx': { role: 'master', city: 'ALL' },
   'pachuca@cityrunhub.mx': { role: 'city_manager', city: 'Pachuca' },
@@ -81,7 +80,6 @@ const getMonday = (d) => {
 const AdminPanel = ({ user, onClose }) => {
   const [activeTab, setActiveTab] = useState('requests');
   
-  // Datos crudos de Firebase
   const [rawPendingClubs, setRawPendingClubs] = useState([]);
   const [rawClubs, setRawClubs] = useState([]);
   const [rawEvents, setRawEvents] = useState([]);
@@ -90,12 +88,10 @@ const AdminPanel = ({ user, onClose }) => {
   const [dbCities, setDbCities] = useState([]);
   const [dbZones, setDbZones] = useState([]);
   
-  // Determinar el Rol del Usuario Actual
-  const userRoleInfo = ADMIN_ROLES[user.email] || { role: 'master', city: 'ALL' }; // Default a master si no está en la lista (para ti)
+  const userRoleInfo = ADMIN_ROLES[user.email] || { role: 'master', city: 'ALL' }; 
   const isMasterAdmin = userRoleInfo.role === 'master';
   const managerCity = userRoleInfo.city;
 
-  // Estados de formularios
   const [newRace, setNewRace] = useState({ name: '', date: '', distance: '', zone: '', link: '', city: isMasterAdmin ? 'CDMX' : managerCity });
   const [newCity, setNewCity] = useState('');
   const [newZone, setNewZone] = useState({ name: '', city: isMasterAdmin ? 'CDMX' : managerCity });
@@ -120,7 +116,7 @@ const AdminPanel = ({ user, onClose }) => {
   const allCities = useMemo(() => [...HARDCODED_CITIES, ...dbCities], [dbCities]);
   const allZones = useMemo(() => [...HARDCODED_ZONES, ...dbZones], [dbZones]);
 
-  // --- FILTROS BASADOS EN ROL ---
+  // Filtros y ordenamiento por fecha de creación (los más nuevos arriba)
   const pendingClubs = useMemo(() => {
     const evs = isMasterAdmin ? rawPendingClubs : rawPendingClubs.filter(c => c.city === managerCity);
     return [...evs].sort((a,b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0));
@@ -248,7 +244,6 @@ const AdminPanel = ({ user, onClose }) => {
                <div className="bg-white p-8 rounded-6xl shadow-xl border border-gray-100 sticky top-32">
                  <h3 className="text-xl font-black mb-6 uppercase italic text-petrol flex items-center gap-3"><Zap className="text-turquoise"/> Evento Indie</h3>
                  
-                 {/* Selector de Tipo de Evento */}
                  <div className="flex bg-gray-50 p-2 rounded-3xl mb-6">
                     <button 
                       className={`flex-1 py-3 text-[10px] uppercase font-black rounded-2xl transition-all ${indieEvent.isRecurring ? 'bg-petrol text-mustard shadow-md' : 'text-gray-400'}`}
@@ -266,23 +261,20 @@ const AdminPanel = ({ user, onClose }) => {
 
                  <form onSubmit={async (e) => {
                    e.preventDefault();
-                   // Validación básica
                    if(!indieEvent.organizerName || !indieEvent.zone) return alert("Faltan datos (Organizador o Zona)");
                    if(!indieEvent.isRecurring && !indieEvent.specificDate) return alert("Selecciona una fecha específica para el evento único.");
 
                    try {
                      const eventData = { ...indieEvent, status: 'active', createdAt: new Date().toISOString() };
-                     // Limpiar campo no usado para mantener limpia la BD
                      if(eventData.isRecurring) delete eventData.specificDate;
                      else delete eventData.day;
 
                      await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events'), eventData);
-                     alert("Sesión publicada.");
-                     // Reset form keeping the city
+                     alert("Sesión publicada correctamente.");
                      setIndieEvent({ organizerName: 'Run City Hub', day: 'Lunes', specificDate: '', time: '07:00', city: indieEvent.city, zone: '', type: 'SR', location: '', isRecurring: true });
                    } catch(error) {
                      console.error("Error adding event:", error);
-                     alert("Error al publicar: " + error.message);
+                     alert("Atención: Firebase bloqueó el registro. Por favor actualiza las Reglas de Firestore como se indica en el paso 1.");
                    }
                  }} className="space-y-4 font-black">
                    
@@ -457,7 +449,6 @@ const PublicApp = ({ user }) => {
   // Soporte Chatbot
   const [isSupportOpen, setIsSupportOpen] = useState(false);
 
-  // Sistema de Rutas Ocultas (Admin)
   useEffect(() => {
     const handleHash = () => {
       if (window.location.hash === '#admin') setView('admin-login');
@@ -503,19 +494,16 @@ const PublicApp = ({ user }) => {
       if (e.time !== time) return false;
       if (e.isRecurring) return e.day === dayName;
       
-      // PARCH DE SEGURIDAD: Evitar que crashee si un evento viejo no tiene fecha específica
       if (!e.specificDate) return false;
       
       try {
-         // Comparación exacta de string YYYY-MM-DD para evitar problemas de zona horaria
          const yyyy = dateObj.getFullYear();
          const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
          const dd = String(dateObj.getDate()).padStart(2, '0');
          const localDateStr = `${yyyy}-${mm}-${dd}`;
-         
          return e.specificDate === localDateStr;
       } catch (error) {
-         return false; // Si hay error al parsear la fecha, lo ignora y sigue funcionando
+         return false;
       }
     });
   };
@@ -650,7 +638,6 @@ const PublicApp = ({ user }) => {
         <main className="max-w-7xl mx-auto px-6 py-24 animate-in slide-in-from-bottom duration-700 flex-1 text-center font-black font-black font-black font-black">
            <h2 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter text-petrol mb-16 font-black leading-none font-black font-black font-black font-black font-black">DIRECTORIO <br/><span className="text-turquoise italic font-black font-black font-black font-black font-black font-black font-black font-black font-black">DE CLUBES.</span></h2>
            
-           {/* SUBMENU DE TIPO DE DIRECTORIO */}
            <div className="flex bg-gray-50 p-2.5 rounded-4xl shadow-inner border border-gray-100 max-w-md mx-auto mb-16 font-black">
               <button onClick={() => setClubDirectoryTab('club')} className={`flex-1 py-4 rounded-[1.8rem] font-black uppercase text-[11px] transition-all ${clubDirectoryTab==='club'?'bg-petrol text-mustard shadow-xl scale-105':'text-gray-400 hover:text-petrol'}`}>Running Clubs</button>
               <button onClick={() => setClubDirectoryTab('business')} className={`flex-1 py-4 rounded-[1.8rem] font-black uppercase text-[11px] transition-all ${clubDirectoryTab==='business'?'bg-petrol text-mustard shadow-xl scale-105':'text-gray-400 hover:text-petrol'}`}>Marcas / Negocios</button>
@@ -686,7 +673,6 @@ const PublicApp = ({ user }) => {
              const selectedFormCity = f.get('city');
              const clubData = { name: f.get('name'), social: f.get('social'), email: f.get('email'), city: selectedFormCity, type: regType, status: 'pending', createdAt: new Date().toISOString() };
              
-             // 1. Guardar en Base de Datos
              const clubRef = await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs_pending'), clubData);
              
              if(regType === 'business') {
@@ -700,7 +686,7 @@ const PublicApp = ({ user }) => {
                     city: selectedFormCity, 
                     location: f.get('loc'), 
                     isRecurring: isRecurring, 
-                    status: 'paused',
+                    status: 'pending',
                     createdAt: new Date().toISOString()
                 };
                 
@@ -710,11 +696,9 @@ const PublicApp = ({ user }) => {
                     eventPayload.specificDate = f.get('specificDate');
                 }
                 
-                await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events'), eventPayload);
+                await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events_pending'), eventPayload);
              }
              
-             // 2. ENVIAR NOTIFICACIÓN REAL POR CORREO (FormSubmit)
-             // OJO: CAMBIA "tu_correo@ejemplo.com" por el correo de tu empresa.
              try {
                 await fetch("https://formsubmit.co/ajax/pacobaga@gmail.com", {
                     method: "POST",
@@ -756,14 +740,17 @@ const PublicApp = ({ user }) => {
 
               {regType === 'business' && (
                 <div className="p-10 bg-white rounded-5xl border border-mustard/20 space-y-8 animate-in zoom-in duration-300 font-black font-black">
-                    <h4 className="text-xl uppercase italic text-petrol border-b border-gray-50 pb-4 font-black font-black">Registra tu evento</h4>
+                    <h4 className="text-xl uppercase italic text-petrol border-b border-gray-50 pb-4 font-black font-black">Detalles del Primer Evento</h4>
                     
-                    <div className="flex bg-gray-50 p-2 rounded-3xl mb-6">
-                        <button type="button" onClick={() => setBusinessEventType('recurring')} className={`flex-1 py-3 text-[10px] uppercase font-black rounded-2xl transition-all ${businessEventType === 'recurring' ? 'bg-petrol text-mustard shadow-md' : 'text-gray-400 hover:text-petrol'}`}>Semanal</button>
-                        <button type="button" onClick={() => setBusinessEventType('unique')} className={`flex-1 py-3 text-[10px] uppercase font-black rounded-2xl transition-all ${businessEventType === 'unique' ? 'bg-petrol text-mustard shadow-md' : 'text-gray-400 hover:text-petrol'}`}>Evento Único</button>
+                    <div className="space-y-3">
+                       <label className="text-[11px] font-black uppercase text-gray-400 font-bold">Frecuencia del Evento</label>
+                       <div className="flex bg-gray-50 p-2 rounded-3xl mb-6 shadow-inner">
+                           <button type="button" onClick={() => setBusinessEventType('recurring')} className={`flex-1 py-4 text-[11px] uppercase font-black rounded-2xl transition-all ${businessEventType === 'recurring' ? 'bg-petrol text-mustard shadow-md' : 'text-gray-400 hover:text-petrol'}`}>Recurrente (Semanal)</button>
+                           <button type="button" onClick={() => setBusinessEventType('unique')} className={`flex-1 py-4 text-[11px] uppercase font-black rounded-2xl transition-all ${businessEventType === 'unique' ? 'bg-petrol text-mustard shadow-md' : 'text-gray-400 hover:text-petrol'}`}>Evento Único (Fecha exacta)</button>
+                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 font-black">
+                    <div className="grid grid-cols-2 gap-4 font-black mt-6">
                         {businessEventType === 'recurring' ? (
                             <select name="day" className="p-6 bg-gray-50 rounded-3xl font-black font-black font-black">{dayNames.map(d=><option key={d}>{d}</option>)}</select>
                         ) : (
@@ -884,16 +871,24 @@ const PublicApp = ({ user }) => {
 const App = () => {
   const [user, setUser] = useState(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  
   useEffect(() => {
-    const initAuth = async () => {
-      try { await signInAnonymously(auth); } catch (err) { console.error("A1", err); }
-    };
-    initAuth();
-    return onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setIsInitializing(false);
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        setUser(u);
+        setIsInitializing(false);
+      } else {
+        try {
+          await signInAnonymously(auth);
+        } catch (err) {
+          console.error("Auth error:", err);
+          setIsInitializing(false);
+        }
+      }
     });
+    return () => unsubscribe();
   }, []);
+
   if (isInitializing) return <div className="h-screen flex items-center justify-center font-black text-petrol uppercase italic tracking-widest text-sm animate-pulse font-black font-black font-black font-black font-black font-black font-black font-black font-black">Iniciando...</div>;
   return <PublicApp user={user} />;
 };
