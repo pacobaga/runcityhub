@@ -28,12 +28,14 @@ const db = getFirestore(app);
 const FIREBASE_APP_ID = 'city-run-hub-prod';
 
 // --- ROLES DE ADMINISTRADOR ---
+// ¡AQUÍ AGREGAMOS TU CORREO PARA QUE TENGAS ACCESO TOTAL!
 const ADMIN_ROLES = {
-  'admin@cityrunhub.mx': { role: 'master', city: 'ALL' },
-  'pachuca@cityrunhub.mx': { role: 'city_manager', city: 'Pachuca' },
-  'qro@cityrunhub.mx': { role: 'city_manager', city: 'Querétaro' },
-  'mty@cityrunhub.mx': { role: 'city_manager', city: 'Monterrey' },
-  'gdl@cityrunhub.mx': { role: 'city_manager', city: 'Guadalajara' }
+  'admin@runcityhub.mx': { role: 'master', city: 'ALL' },
+  'pacobaga@gmail.com': { role: 'master', city: 'ALL' },
+  'pachuca@runcityhub.mx': { role: 'city_manager', city: 'Pachuca' },
+  'qro@runcityhub.mx': { role: 'city_manager', city: 'Querétaro' },
+  'mty@runcityhub.mx': { role: 'city_manager', city: 'Monterrey' },
+  'gdl@runcityhub.mx': { role: 'city_manager', city: 'Guadalajara' }
 };
 
 // --- DATOS MAESTROS ---
@@ -51,7 +53,8 @@ const HARDCODED_ZONES = [
   { name: "CHAPULTEPEC II", city: "CDMX" }, { name: "REFORMA", city: "CDMX" }, 
   { name: "ESTELA DE LUZ", city: "CDMX" }, { name: "C.U.", city: "CDMX" }, 
   { name: "COYOACÁN", city: "CDMX" }, { name: "TLALPAN", city: "CDMX" }, 
-  { name: "SANTA FE", city: "CDMX" },
+  { name: "DEL VALLE", city: "CDMX" }, { name: "AZCAPOTZALCO", city: "CDMX" }, 
+  { name: "SANTA CRUZ ATOYAC", city: "CDMX" }, { name: "PARQUE METROPOLITANO", city: "CDMX" },
   { name: "Revolución", city: "Pachuca" }, { name: "Parque Cultural Hidalguense", city: "Pachuca" },
   { name: "Río de las Avenidas", city: "Pachuca" }
 ];
@@ -285,6 +288,7 @@ const AdminPanel = ({ user, onClose }) => {
 
   const races = useMemo(() => isMasterAdmin ? rawRaces : rawRaces.filter(r => r.city === managerCity), [rawRaces, isMasterAdmin, managerCity]);
 
+  // Si no está en la lista de administradores, mostramos acceso denegado
   if (userRoleInfo.role === 'none') {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-10 font-black text-petrol text-center">
@@ -439,7 +443,7 @@ const AdminPanel = ({ user, onClose }) => {
                      setIndieEvent({ organizerName: 'Run City Hub', day: 'Lunes', specificDate: '', time: '07:00', city: indieEvent.city, zone: '', type: 'SR', location: '', isRecurring: true });
                    } catch(error) {
                      console.error("Error adding event:", error);
-                     alert("Atención: Firebase bloqueó el registro. Asegúrate de tener permisos.");
+                     alert("Atención: Firebase bloqueó el registro. Por favor asegúrate de tener permisos.");
                    }
                  }} className="space-y-4 font-black">
                    
@@ -699,7 +703,7 @@ const PublicApp = ({ user }) => {
           <nav className="hidden lg:flex items-center gap-6 xl:gap-10 text-[11px] font-black uppercase tracking-[0.3em] text-gray-400 font-black">
             <button onClick={() => { window.location.hash=''; setView('home'); }} className={view==='home'?'text-petrol':''}>Inicio</button>
             <button onClick={() => { window.location.hash=''; setView('home'); setTimeout(() => document.getElementById('agenda')?.scrollIntoView({behavior:'smooth'}), 100); }}>Calendario</button>
-            <button onClick={() => { window.location.hash=''; setView('races'); }} className={view==='races'?'text-petrol':''}>Carreras</button>
+            <button onClick={() => { window.location.hash=''; setView('races'); }} className={view==='races'?'text-petrol':''}>Carreras 2026</button>
             <button onClick={() => { window.location.hash=''; setView('clubs'); }} className={view==='clubs'?'text-petrol':''}>Clubes</button>
             <div className="relative flex items-center bg-gray-50 rounded-xl px-4 py-2 font-black text-petrol border border-gray-100 shadow-inner group font-black">
               <select className="bg-transparent outline-none appearance-none pr-8 cursor-pointer uppercase text-[10px] tracking-widest font-black" value={selectedCity} onChange={e => { setSelectedCity(e.target.value); setSelectedZone('Todos'); }}>
@@ -708,7 +712,6 @@ const PublicApp = ({ user }) => {
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-petrol font-black" size={14} />
             </div>
             
-            {/* NUEVO BOTON PARA ENTRAR AL PORTAL DE CLUB */}
             <button onClick={() => { 
               const isApprovedClub = clubs.find(c => c.email === user?.email);
               if(isApprovedClub) setView('club-panel');
@@ -957,61 +960,6 @@ const PublicApp = ({ user }) => {
            </form>
         </main>
       )}
-      
-      {/* INICIO DE SESIÓN PARA CLUBES (NUEVO) */}
-      {view === 'club-login' && (
-        <div className="fixed inset-0 z-[600] flex justify-center p-4 md:p-10 bg-petrol/98 backdrop-blur-3xl animate-in fade-in duration-500 overflow-y-auto font-black text-left font-black font-black">
-           <div className="bg-white p-10 md:p-14 rounded-6xl shadow-2xl w-full max-w-md relative border-t-[30px] border-turquoise my-auto font-black font-black font-black font-black">
-              <button onClick={() => { window.location.hash=''; setView('home'); }} className="absolute top-6 right-6 p-4 text-petrol bg-gray-50 rounded-full hover:bg-red-50 transition shadow-lg active:scale-90 font-black font-black font-black font-black font-black"><X size={24}/></button>
-              <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 text-petrol leading-none font-black italic tracking-tighter font-black font-black font-black font-black font-black">PORTAL <br/> <span className="text-turquoise font-black font-black font-black font-black font-black font-black">ORGANIZADOR</span></h2>
-              
-              <div className="bg-palemint/50 p-4 rounded-2xl mb-8 flex items-start gap-3">
-                 <Info size={24} className="text-turquoise shrink-0 mt-1" />
-                 <p className="text-xs text-petrol leading-relaxed font-bold">Si tu club ya fue aprobado por nuestro equipo, ingresa creando tu contraseña <strong>usando el mismo correo</strong> con el que te registraste.</p>
-              </div>
-
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                const email = e.target.email.value;
-                const password = e.target.pass.value;
-                const mode = e.nativeEvent.submitter.name; // 'login' o 'register'
-                
-                try {
-                  if (mode === 'register') {
-                    // Verificar primero si el correo ya es de un club aprobado
-                    const isApprovedClub = clubs.find(c => c.email === email);
-                    if (!isApprovedClub) {
-                      return alert("El correo no pertenece a ningún club aprobado. Si ya mandaste tu solicitud, espera nuestra confirmación.");
-                    }
-                    await createUserWithEmailAndPassword(auth, email, password);
-                    alert("Contraseña creada con éxito.");
-                  } else {
-                    await signInWithEmailAndPassword(auth, email, password);
-                  }
-                  
-                  // La redirección al club-panel se hará en onAuthStateChanged
-                  setView('club-panel');
-                } catch(err) { 
-                  if(err.code === 'auth/email-already-in-use') {
-                    alert("Ya creaste una contraseña para este correo. Por favor haz clic en 'Iniciar Sesión'.");
-                  } else if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
-                    alert("Correo o contraseña incorrectos.");
-                  } else {
-                    alert("Error: " + err.message);
-                  }
-                }
-              }} className="space-y-6 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black">
-                 <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black">Email del Club Registrado</label><input required name="email" type="email" placeholder="correo@club.com" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
-                 <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black">Contraseña</label><input required name="pass" type="password" placeholder="••••••••" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
-                 
-                 <div className="flex flex-col gap-3 pt-4">
-                    <button type="submit" name="login" className="w-full bg-petrol text-white py-6 rounded-4xl font-black text-lg uppercase italic shadow-lg active:scale-95 transition-all">Iniciar Sesión</button>
-                    <button type="submit" name="register" className="w-full bg-white border-2 border-gray-100 text-petrol py-6 rounded-4xl font-black text-lg uppercase italic active:scale-95 hover:bg-gray-50 transition-all">Crear mi contraseña</button>
-                 </div>
-              </form>
-           </div>
-        </div>
-      )}
 
       {/* Ficha de Evento (Modal) */}
       {selectedEvent && (
@@ -1045,7 +993,7 @@ const PublicApp = ({ user }) => {
           <div className="absolute bottom-20 right-0 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100 p-4 animate-in slide-in-from-bottom-2 duration-200">
             <h4 className="text-xs font-black uppercase tracking-widest text-petrol mb-4 border-b pb-2">Atención a Corredores</h4>
             <div className="space-y-2">
-              <a href="https://wa.me/525529402572" target="_blank" rel="noreferrer" className="flex items-center gap-3 w-full p-3 bg-green-50 text-green-700 hover:bg-green-100 rounded-xl transition-colors font-bold text-sm">
+              <a href="https://wa.me/525500000000" target="_blank" rel="noreferrer" className="flex items-center gap-3 w-full p-3 bg-green-50 text-green-700 hover:bg-green-100 rounded-xl transition-colors font-bold text-sm">
                 <Smartphone size={18}/> WhatsApp
               </a>
               <a href="mailto:soporte@cityrunhub.mx" className="flex items-center gap-3 w-full p-3 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl transition-colors font-bold text-sm">
