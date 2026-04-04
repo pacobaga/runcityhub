@@ -3,12 +3,12 @@ import {
   Calendar as CalendarIcon, MapPin, Clock, Info, Users, PlusCircle, ChevronRight, 
   Instagram, ExternalLink, Filter, ArrowLeft, CheckCircle2, 
   AlertTriangle, Trophy, ChevronDown, Search, Bell, Loader2, X, Check, Trash2, Lock,
-  Globe, CalendarDays, Zap, Settings, Map, Store, Menu as MenuIcon, ChevronLeft, Send, Briefcase, EyeOff, Play, Pause, Edit2, MessageCircle, Mail, Smartphone
+  Globe, CalendarDays, Zap, Settings, Map, Store, Menu as MenuIcon, ChevronLeft, Send, Briefcase, EyeOff, Play, Pause, Edit2, MessageCircle, Mail, Smartphone, LogIn
 } from 'lucide-react';
 
 // --- FIREBASE IMPORTS ---
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 // --- CONFIGURACIÓN DE FIREBASE ---
@@ -27,7 +27,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const FIREBASE_APP_ID = 'city-run-hub-prod';
 
-// --- ROLES DE ADMINISTRADOR (Simulados para el frontend) ---
+// --- ROLES DE ADMINISTRADOR ---
 const ADMIN_ROLES = {
   'admin@cityrunhub.mx': { role: 'master', city: 'ALL' },
   'pachuca@cityrunhub.mx': { role: 'city_manager', city: 'Pachuca' },
@@ -74,6 +74,160 @@ const getMonday = (d) => {
   return monday;
 };
 
+
+// ==========================================
+// COMPONENTE: PANEL DE CLUBES (NUEVO)
+// ==========================================
+const ClubPanel = ({ user, club, events, allZones, onClose }) => {
+  const [activeTab, setActiveTab] = useState('events');
+  const [newEvent, setNewEvent] = useState({ 
+    day: 'Lunes', specificDate: '', time: '07:00', 
+    zone: '', type: 'SR', location: '', isRecurring: true 
+  });
+
+  const myEvents = useMemo(() => {
+    return events.filter(e => e.clubId === club.id || e.organizerEmail === club.email)
+                 .sort((a,b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0));
+  }, [events, club]);
+
+  const clubZones = useMemo(() => allZones.filter(z => z.city === club.city), [allZones, club.city]);
+
+  const handleToggleEvent = async (ev) => {
+    const newStatus = ev.status === 'paused' ? 'active' : 'paused';
+    await updateDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events', ev.id), { status: newStatus });
+  };
+
+  const handleAddEvent = async (e) => {
+    e.preventDefault();
+    if(!newEvent.zone) return alert("Selecciona una zona.");
+    if(!newEvent.isRecurring && !newEvent.specificDate) return alert("Selecciona una fecha específica.");
+
+    try {
+      const eventData = { 
+        ...newEvent, 
+        clubId: club.id,
+        organizerName: club.name,
+        organizerEmail: club.email,
+        city: club.city,
+        status: 'active', 
+        createdAt: new Date().toISOString() 
+      };
+      
+      if(eventData.isRecurring) delete eventData.specificDate;
+      else delete eventData.day;
+
+      await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events'), eventData);
+      alert("Evento publicado exitosamente.");
+      setNewEvent({ day: 'Lunes', specificDate: '', time: '07:00', zone: '', type: 'SR', location: '', isRecurring: true });
+    } catch (error) {
+      alert("Error al publicar evento: " + error.message);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-left font-black">
+      <nav className="bg-petrol text-white p-6 flex flex-col md:flex-row justify-between items-center shadow-2xl px-12 gap-6 sticky top-0 z-50">
+        <div>
+          <h2 className="text-2xl font-black uppercase italic tracking-tighter leading-none">PORTAL <span className="text-turquoise">ORGANIZADOR</span></h2>
+          <p className="text-[10px] text-mustard uppercase tracking-widest mt-1">{club.name} • {club.city}</p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-2 items-center">
+          <button onClick={() => setActiveTab('events')} className={`px-6 py-2 rounded-full text-[10px] uppercase ${activeTab === 'events' ? 'bg-turquoise text-white shadow-lg' : 'bg-white/10'}`}>Mis Sesiones</button>
+          <button onClick={() => setActiveTab('profile')} className={`px-6 py-2 rounded-full text-[10px] uppercase ${activeTab === 'profile' ? 'bg-turquoise text-white shadow-lg' : 'bg-white/10'}`}>Mi Perfil</button>
+          <button onClick={async () => { await signOut(auth); onClose(); }} className="ml-4 px-6 py-2 bg-red-500 text-white rounded-full font-black text-[10px] uppercase hover:bg-red-600 transition-colors">Salir</button>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto p-12 w-full font-black text-petrol">
+        {activeTab === 'events' && (
+          <div className="grid md:grid-cols-12 gap-12 text-left font-black">
+            <div className="md:col-span-7 space-y-6">
+              <h3 className="text-2xl font-black uppercase italic border-b-4 border-turquoise pb-2 inline-block">Mis Sesiones Activas</h3>
+              <div className="grid gap-4 max-h-[70vh] overflow-y-auto no-scrollbar pr-4">
+                {myEvents.map(ev => (
+                  <div key={ev.id} className={`bg-white p-6 rounded-[2.5rem] shadow-sm flex justify-between items-center border border-gray-100 ${ev.status === 'paused' ? 'opacity-50 grayscale bg-gray-50' : ''}`}>
+                    <div className="flex items-center gap-5">
+                      <div className="p-4 bg-gray-50 rounded-2xl text-petrol">{ev.isRecurring ? <CalendarDays size={20}/> : <Zap size={20}/>}</div>
+                      <div>
+                        <h4 className="font-black text-lg uppercase italic leading-none">{RUN_TYPES[ev.type]?.label || 'Evento'}</h4>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">
+                          {ev.isRecurring ? `TODOS LOS ${ev.day}` : ev.specificDate} • {ev.time} hrs • {ev.zone}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleToggleEvent(ev)} className={`p-3 rounded-2xl ${ev.status === 'paused' ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'}`}>{ev.status === 'paused' ? <Play size={20}/> : <Pause size={20}/>}</button>
+                      <button onClick={async () => { if(confirm("¿Eliminar este evento permanentemente?")) await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events', ev.id)) }} className="p-3 bg-red-50 text-red-300 rounded-2xl hover:bg-red-100 transition-colors"><Trash2 size={20}/></button>
+                    </div>
+                  </div>
+                ))}
+                {myEvents.length === 0 && <p className="text-gray-400 italic">No tienes sesiones registradas aún.</p>}
+              </div>
+            </div>
+
+            <div className="md:col-span-5">
+               <div className="bg-white p-8 rounded-6xl shadow-xl border border-gray-100 sticky top-32">
+                 <h3 className="text-xl font-black mb-6 uppercase italic text-petrol flex items-center gap-3"><PlusCircle className="text-turquoise"/> Nueva Sesión</h3>
+                 
+                 <div className="flex bg-gray-50 p-2 rounded-3xl mb-6">
+                    <button type="button" onClick={() => setNewEvent({...newEvent, isRecurring: true})} className={`flex-1 py-3 text-[10px] uppercase font-black rounded-2xl transition-all ${newEvent.isRecurring ? 'bg-petrol text-mustard shadow-md' : 'text-gray-400'}`}>Semanal</button>
+                    <button type="button" onClick={() => setNewEvent({...newEvent, isRecurring: false})} className={`flex-1 py-3 text-[10px] uppercase font-black rounded-2xl transition-all ${!newEvent.isRecurring ? 'bg-petrol text-mustard shadow-md' : 'text-gray-400'}`}>Evento Único</button>
+                 </div>
+
+                 <form onSubmit={handleAddEvent} className="space-y-4 font-black">
+                   <select className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs" value={newEvent.type} onChange={e => setNewEvent({...newEvent, type: e.target.value})}>
+                     {Object.entries(RUN_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                   </select>
+                   
+                   <div className="grid grid-cols-2 gap-2">
+                     {newEvent.isRecurring ? (
+                       <select className="p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs" value={newEvent.day} onChange={e => setNewEvent({...newEvent, day: e.target.value})}>
+                          {dayNames.map(d => <option key={d}>{d}</option>)}
+                       </select>
+                     ) : (
+                       <input required type="date" className="p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs text-gray-500" value={newEvent.specificDate} onChange={e => setNewEvent({...newEvent, specificDate: e.target.value})} />
+                     )}
+                     <input required type="time" className="p-4 bg-gray-50 rounded-2xl font-black outline-none" value={newEvent.time} onChange={e => setNewEvent({...newEvent, time: e.target.value})} />
+                   </div>
+                   
+                   <select required className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs" value={newEvent.zone} onChange={e => setNewEvent({...newEvent, zone: e.target.value})}>
+                      <option value="">Selecciona tu zona...</option>
+                      {clubZones.map(z => <option key={z.id || z.name} value={z.name}>{z.name}</option>)}
+                   </select>
+                   
+                   <input required placeholder="Punto de encuentro (Ej. Fuente de Cibeles)" className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none shadow-inner" value={newEvent.location} onChange={e => setNewEvent({...newEvent, location: e.target.value})} />
+                   
+                   <button className="w-full bg-turquoise text-white py-5 rounded-4xl font-black text-xs uppercase italic hover:bg-teal-500 transition-colors shadow-lg active:scale-95">Publicar Sesión</button>
+                 </form>
+               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'profile' && (
+          <div className="max-w-2xl mx-auto space-y-6 text-left font-black">
+            <h3 className="text-2xl font-black uppercase italic border-b-4 border-turquoise pb-2 inline-block">Perfil de {club.type === 'club' ? 'Club' : 'Marca'}</h3>
+            <div className="bg-white p-10 rounded-6xl shadow-xl border border-gray-100">
+               <div className="flex items-center gap-6 mb-8">
+                  <div className="w-24 h-24 bg-gray-100 rounded-full border-4 border-white shadow-lg overflow-hidden flex items-center justify-center text-gray-400">
+                     {club.logoUrl ? <img src={club.logoUrl} className="w-full h-full object-cover" /> : <Users size={40} />}
+                  </div>
+                  <div>
+                    <h4 className="text-3xl font-black italic uppercase text-petrol leading-none">{club.name}</h4>
+                    <p className="text-turquoise text-sm mt-1 uppercase font-bold tracking-widest">@{club.social}</p>
+                  </div>
+               </div>
+               
+               <p className="text-gray-400 italic font-bold mb-4">Para actualizar tu logo o datos de contacto, comunícate con el equipo de soporte de Run City Hub a través del botón de ayuda en la página principal.</p>
+               <button className="px-8 py-4 bg-gray-50 rounded-full text-petrol font-black uppercase text-xs hover:bg-gray-100 transition-colors border border-gray-200">Solicitar Edición de Perfil</button>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
 // ==========================================
 // COMPONENTE: PANEL DE GESTIÓN (ADMIN)
 // ==========================================
@@ -88,7 +242,8 @@ const AdminPanel = ({ user, onClose }) => {
   const [dbCities, setDbCities] = useState([]);
   const [dbZones, setDbZones] = useState([]);
   
-  const userRoleInfo = ADMIN_ROLES[user.email] || { role: 'master', city: 'ALL' }; 
+  // VERIFICACIÓN DE ROL SEGURA
+  const userRoleInfo = ADMIN_ROLES[user.email] || { role: 'none', city: 'NONE' }; 
   const isMasterAdmin = userRoleInfo.role === 'master';
   const managerCity = userRoleInfo.city;
 
@@ -101,7 +256,7 @@ const AdminPanel = ({ user, onClose }) => {
   });
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || userRoleInfo.role === 'none') return;
     const unsub = [
       onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs_pending'), s => setRawPendingClubs(s.docs.map(d => ({id:d.id, ...d.data()})))),
       onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs'), s => setRawClubs(s.docs.map(d => ({id:d.id, ...d.data()})))),
@@ -111,12 +266,11 @@ const AdminPanel = ({ user, onClose }) => {
       onSnapshot(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'zones'), s => setDbZones(s.docs.map(d => ({id:d.id, ...d.data()}))))
     ];
     return () => unsub.forEach(fn => fn());
-  }, [user]);
+  }, [user, userRoleInfo.role]);
 
   const allCities = useMemo(() => [...HARDCODED_CITIES, ...dbCities], [dbCities]);
   const allZones = useMemo(() => [...HARDCODED_ZONES, ...dbZones], [dbZones]);
 
-  // Filtros y ordenamiento por fecha de creación (los más nuevos arriba)
   const pendingClubs = useMemo(() => {
     const evs = isMasterAdmin ? rawPendingClubs : rawPendingClubs.filter(c => c.city === managerCity);
     return [...evs].sort((a,b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0));
@@ -130,6 +284,17 @@ const AdminPanel = ({ user, onClose }) => {
   }, [rawEvents, isMasterAdmin, managerCity]);
 
   const races = useMemo(() => isMasterAdmin ? rawRaces : rawRaces.filter(r => r.city === managerCity), [rawRaces, isMasterAdmin, managerCity]);
+
+  if (userRoleInfo.role === 'none') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-10 font-black text-petrol text-center">
+        <AlertTriangle size={64} className="text-red-500 mb-6" />
+        <h2 className="text-4xl uppercase italic tracking-tighter mb-4">Acceso Denegado</h2>
+        <p className="text-gray-400 mb-8 max-w-md">Tu cuenta no tiene permisos de administrador del sistema. Si eres un club registrado, por favor ingresa a través del "Portal Clubes".</p>
+        <button onClick={async () => { await signOut(auth); onClose(); }} className="bg-petrol text-mustard px-10 py-4 rounded-full uppercase text-xs hover:scale-105 active:scale-95 transition-transform">Volver al Inicio</button>
+      </div>
+    );
+  }
 
   const handleApproveClub = async (club) => {
     const { id, ...data } = club;
@@ -186,7 +351,7 @@ const AdminPanel = ({ user, onClose }) => {
           {isMasterAdmin && (
             <button onClick={() => setActiveTab('config')} className={`px-4 py-2 rounded-full text-[10px] uppercase ${activeTab === 'config' ? 'bg-mustard text-petrol shadow-lg' : 'bg-white/10'}`}>Zonas/Ciudades</button>
           )}
-          <button onClick={onClose} className="ml-4 px-6 py-2 bg-red-500 text-white rounded-full font-black text-[10px] uppercase hover:bg-red-600 transition-colors">Cerrar</button>
+          <button onClick={async () => { await signOut(auth); onClose(); }} className="ml-4 px-6 py-2 bg-red-500 text-white rounded-full font-black text-[10px] uppercase hover:bg-red-600 transition-colors">Salir</button>
         </div>
       </nav>
 
@@ -274,7 +439,7 @@ const AdminPanel = ({ user, onClose }) => {
                      setIndieEvent({ organizerName: 'Run City Hub', day: 'Lunes', specificDate: '', time: '07:00', city: indieEvent.city, zone: '', type: 'SR', location: '', isRecurring: true });
                    } catch(error) {
                      console.error("Error adding event:", error);
-                     alert("Atención: Firebase bloqueó el registro. Por favor actualiza las Reglas de Firestore como se indica en el paso 1.");
+                     alert("Atención: Firebase bloqueó el registro. Asegúrate de tener permisos.");
                    }
                  }} className="space-y-4 font-black">
                    
@@ -531,19 +696,28 @@ const PublicApp = ({ user }) => {
              <div className="text-xl md:text-3xl font-black tracking-tighter uppercase italic leading-none text-left tracking-tighter font-black">RUN CITY <span className="text-turquoise font-black italic">HUB</span></div>
           </div>
 
-          <nav className="hidden lg:flex items-center gap-10 text-[11px] font-black uppercase tracking-[0.3em] text-gray-400 font-black">
+          <nav className="hidden lg:flex items-center gap-6 xl:gap-10 text-[11px] font-black uppercase tracking-[0.3em] text-gray-400 font-black">
             <button onClick={() => { window.location.hash=''; setView('home'); }} className={view==='home'?'text-petrol':''}>Inicio</button>
             <button onClick={() => { window.location.hash=''; setView('home'); setTimeout(() => document.getElementById('agenda')?.scrollIntoView({behavior:'smooth'}), 100); }}>Calendario</button>
-            <button onClick={() => { window.location.hash=''; setView('races'); }} className={view==='races'?'text-petrol':''}>Carreras 2026</button>
+            <button onClick={() => { window.location.hash=''; setView('races'); }} className={view==='races'?'text-petrol':''}>Carreras</button>
             <button onClick={() => { window.location.hash=''; setView('clubs'); }} className={view==='clubs'?'text-petrol':''}>Clubes</button>
-            <button onClick={() => { window.location.hash=''; setView('register'); }} className={view==='register'?'text-petrol':''}>Registro Club</button>
             <div className="relative flex items-center bg-gray-50 rounded-xl px-4 py-2 font-black text-petrol border border-gray-100 shadow-inner group font-black">
               <select className="bg-transparent outline-none appearance-none pr-8 cursor-pointer uppercase text-[10px] tracking-widest font-black" value={selectedCity} onChange={e => { setSelectedCity(e.target.value); setSelectedZone('Todos'); }}>
                 {allCities.map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-petrol font-black" size={14} />
             </div>
-            <button onClick={() => { window.location.hash=''; setView('register'); }} className="bg-petrol text-mustard px-10 py-3.5 rounded-full shadow-2xl hover:bg-turquoise hover:text-white transition-all font-black uppercase italic tracking-widest text-[12px] active:scale-95 font-black">Unirse</button>
+            
+            {/* NUEVO BOTON PARA ENTRAR AL PORTAL DE CLUB */}
+            <button onClick={() => { 
+              const isApprovedClub = clubs.find(c => c.email === user?.email);
+              if(isApprovedClub) setView('club-panel');
+              else setView('club-login'); 
+            }} className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-petrol px-6 py-3.5 rounded-full transition-all font-black uppercase italic tracking-widest text-[10px] active:scale-95">
+              <LogIn size={14}/> Portal Clubes
+            </button>
+            
+            <button onClick={() => { window.location.hash=''; setView('register'); }} className="bg-petrol text-mustard px-8 py-3.5 rounded-full shadow-2xl hover:bg-turquoise hover:text-white transition-all font-black uppercase italic tracking-widest text-[12px] active:scale-95 font-black">Unirse</button>
           </nav>
         </div>
       </header>
@@ -687,7 +861,7 @@ const PublicApp = ({ user }) => {
                     organizerName: f.get('name'), 
                     time: f.get('time'), 
                     zone: f.get('zone'), 
-                    type: f.get('eventType') || 'EE', // Capturamos el tipo de evento elegido
+                    type: f.get('eventType') || 'EE', 
                     city: selectedFormCity, 
                     location: f.get('loc'), 
                     isRecurring: isRecurring, 
@@ -783,6 +957,61 @@ const PublicApp = ({ user }) => {
            </form>
         </main>
       )}
+      
+      {/* INICIO DE SESIÓN PARA CLUBES (NUEVO) */}
+      {view === 'club-login' && (
+        <div className="fixed inset-0 z-[600] flex justify-center p-4 md:p-10 bg-petrol/98 backdrop-blur-3xl animate-in fade-in duration-500 overflow-y-auto font-black text-left font-black font-black">
+           <div className="bg-white p-10 md:p-14 rounded-6xl shadow-2xl w-full max-w-md relative border-t-[30px] border-turquoise my-auto font-black font-black font-black font-black">
+              <button onClick={() => { window.location.hash=''; setView('home'); }} className="absolute top-6 right-6 p-4 text-petrol bg-gray-50 rounded-full hover:bg-red-50 transition shadow-lg active:scale-90 font-black font-black font-black font-black font-black"><X size={24}/></button>
+              <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 text-petrol leading-none font-black italic tracking-tighter font-black font-black font-black font-black font-black">PORTAL <br/> <span className="text-turquoise font-black font-black font-black font-black font-black font-black">ORGANIZADOR</span></h2>
+              
+              <div className="bg-palemint/50 p-4 rounded-2xl mb-8 flex items-start gap-3">
+                 <Info size={24} className="text-turquoise shrink-0 mt-1" />
+                 <p className="text-xs text-petrol leading-relaxed font-bold">Si tu club ya fue aprobado por nuestro equipo, ingresa creando tu contraseña <strong>usando el mismo correo</strong> con el que te registraste.</p>
+              </div>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const email = e.target.email.value;
+                const password = e.target.pass.value;
+                const mode = e.nativeEvent.submitter.name; // 'login' o 'register'
+                
+                try {
+                  if (mode === 'register') {
+                    // Verificar primero si el correo ya es de un club aprobado
+                    const isApprovedClub = clubs.find(c => c.email === email);
+                    if (!isApprovedClub) {
+                      return alert("El correo no pertenece a ningún club aprobado. Si ya mandaste tu solicitud, espera nuestra confirmación.");
+                    }
+                    await createUserWithEmailAndPassword(auth, email, password);
+                    alert("Contraseña creada con éxito.");
+                  } else {
+                    await signInWithEmailAndPassword(auth, email, password);
+                  }
+                  
+                  // La redirección al club-panel se hará en onAuthStateChanged
+                  setView('club-panel');
+                } catch(err) { 
+                  if(err.code === 'auth/email-already-in-use') {
+                    alert("Ya creaste una contraseña para este correo. Por favor haz clic en 'Iniciar Sesión'.");
+                  } else if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+                    alert("Correo o contraseña incorrectos.");
+                  } else {
+                    alert("Error: " + err.message);
+                  }
+                }
+              }} className="space-y-6 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black">
+                 <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black">Email del Club Registrado</label><input required name="email" type="email" placeholder="correo@club.com" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
+                 <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black">Contraseña</label><input required name="pass" type="password" placeholder="••••••••" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
+                 
+                 <div className="flex flex-col gap-3 pt-4">
+                    <button type="submit" name="login" className="w-full bg-petrol text-white py-6 rounded-4xl font-black text-lg uppercase italic shadow-lg active:scale-95 transition-all">Iniciar Sesión</button>
+                    <button type="submit" name="register" className="w-full bg-white border-2 border-gray-100 text-petrol py-6 rounded-4xl font-black text-lg uppercase italic active:scale-95 hover:bg-gray-50 transition-all">Crear mi contraseña</button>
+                 </div>
+              </form>
+           </div>
+        </div>
+      )}
 
       {/* Ficha de Evento (Modal) */}
       {selectedEvent && (
@@ -816,7 +1045,7 @@ const PublicApp = ({ user }) => {
           <div className="absolute bottom-20 right-0 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100 p-4 animate-in slide-in-from-bottom-2 duration-200">
             <h4 className="text-xs font-black uppercase tracking-widest text-petrol mb-4 border-b pb-2">Atención a Corredores</h4>
             <div className="space-y-2">
-              <a href="https://wa.me/525500000000" target="_blank" rel="noreferrer" className="flex items-center gap-3 w-full p-3 bg-green-50 text-green-700 hover:bg-green-100 rounded-xl transition-colors font-bold text-sm">
+              <a href="https://wa.me/525529402572" target="_blank" rel="noreferrer" className="flex items-center gap-3 w-full p-3 bg-green-50 text-green-700 hover:bg-green-100 rounded-xl transition-colors font-bold text-sm">
                 <Smartphone size={18}/> WhatsApp
               </a>
               <a href="mailto:soporte@cityrunhub.mx" className="flex items-center gap-3 w-full p-3 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl transition-colors font-bold text-sm">
@@ -843,7 +1072,11 @@ const PublicApp = ({ user }) => {
               <button onClick={() => { window.location.hash=''; setView('home'); setTimeout(() => document.getElementById('agenda')?.scrollIntoView({behavior:'smooth'}), 100); }} className="hover:text-mustard transition-colors font-black font-black font-black">Calendario</button>
               <button onClick={() => { window.location.hash=''; setView('races'); }} className="hover:text-mustard transition-colors font-black font-black">Carreras</button>
               <button onClick={() => { window.location.hash=''; setView('clubs'); }} className="hover:text-mustard transition-colors font-black font-black">Clubes</button>
-              <button onClick={() => { window.location.hash=''; setView('register'); }} className="hover:text-mustard transition-colors font-black font-black">Registro Club</button>
+              <button onClick={() => { 
+                  const isApprovedClub = clubs.find(c => c.email === user?.email);
+                  if(isApprovedClub) setView('club-panel');
+                  else setView('club-login'); 
+              }} className="hover:text-mustard transition-colors font-black font-black">Portal Clubes</button>
            </nav>
            <div className="flex flex-col items-center gap-8 w-full pt-10 border-t border-white/5 font-black font-black font-black font-black font-black font-black font-black font-black">
               <div className="flex gap-14 text-white/30 font-black font-black font-black font-black font-black">
@@ -872,9 +1105,22 @@ const PublicApp = ({ user }) => {
         </div>
       )}
 
+      {/* PANELES RESTRINGIDOS */}
       {view === 'admin-panel' && (
         <div className="fixed inset-0 z-[700] bg-white animate-in slide-in-from-bottom duration-700 overflow-y-auto text-left font-black font-black font-black font-black font-black font-black">
           <AdminPanel user={user} onClose={() => { window.location.hash=''; setView('home'); }} />
+        </div>
+      )}
+      
+      {view === 'club-panel' && (
+        <div className="fixed inset-0 z-[700] bg-white animate-in slide-in-from-bottom duration-700 overflow-y-auto text-left font-black font-black font-black font-black font-black font-black">
+          <ClubPanel 
+            user={user} 
+            club={clubs.find(c => c.email === user?.email)} 
+            events={events}
+            allZones={allZones}
+            onClose={() => { window.location.hash=''; setView('home'); }} 
+          />
         </div>
       )}
     </div>
