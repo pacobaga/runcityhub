@@ -30,12 +30,12 @@ const FIREBASE_APP_ID = 'city-run-hub-prod';
 
 // --- ROLES DE ADMINISTRADOR ---
 const ADMIN_ROLES = {
-  'admin@runcityhub.com': { role: 'master', city: 'ALL' },
+  'admin@runcityhub.mx': { role: 'master', city: 'ALL' },
   'pacobaga@gmail.com': { role: 'master', city: 'ALL' },
-  'pachuca@runcityhub.com': { role: 'city_manager', city: 'Pachuca' },
-  'qro@runcityhub.com': { role: 'city_manager', city: 'Querétaro' },
-  'mty@runcityhub.com': { role: 'city_manager', city: 'Monterrey' },
-  'gdl@runcityhub.com': { role: 'city_manager', city: 'Guadalajara' }
+  'pachuca@runcityhub.mx': { role: 'city_manager', city: 'Pachuca' },
+  'qro@runcityhub.mx': { role: 'city_manager', city: 'Querétaro' },
+  'mty@runcityhub.mx': { role: 'city_manager', city: 'Monterrey' },
+  'gdl@runcityhub.mx': { role: 'city_manager', city: 'Guadalajara' }
 };
 
 // --- DATOS MAESTROS ---
@@ -106,6 +106,17 @@ const handleLogoUpload = async (e, clubId) => {
 // COMPONENTE: PANEL DE CLUBES
 // ==========================================
 const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
+  // Blindaje por si el club aún no se carga o no existe
+  if (!club) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center font-black text-petrol flex-col gap-4">
+        <Loader2 className="animate-spin text-turquoise" size={40} />
+        <p>Cargando Portal...</p>
+        <button onClick={onClose} className="px-6 py-2 bg-red-500 text-white rounded-full text-xs uppercase mt-4">Cerrar</button>
+      </div>
+    );
+  }
+
   const [activeTab, setActiveTab] = useState('events');
   const [newEvent, setNewEvent] = useState({ 
     day: 'Lunes', specificDate: '', time: '07:00', 
@@ -476,7 +487,7 @@ const AdminPanel = ({ user, onClose }) => {
   const [dbCities, setDbCities] = useState([]);
   const [dbZones, setDbZones] = useState([]);
   
-  const userRoleInfo = ADMIN_ROLES[user.email] || { role: 'none', city: 'NONE' }; 
+  const userRoleInfo = ADMIN_ROLES[user?.email] || { role: 'none', city: 'NONE' }; 
   const isMasterAdmin = userRoleInfo.role === 'master';
   const managerCity = userRoleInfo.city;
 
@@ -785,7 +796,7 @@ const AdminPanel = ({ user, onClose }) => {
             </div>
             <div className="space-y-4 max-h-[600px] overflow-y-auto no-scrollbar font-black text-left pr-4">
               <h3 className="text-xl font-black uppercase italic text-petrol mb-4">Metas Registradas</h3>
-              {races.sort((a,b) => new Date(a.date) - new Date(b.date)).map(r => (
+              {[...races].sort((a,b) => new Date(a.date) - new Date(b.date)).map(r => (
                 <div key={r.id} className="bg-white p-6 rounded-4xl border border-gray-100 flex justify-between items-center shadow-sm">
                   <div><h4 className="font-black text-lg text-petrol uppercase leading-none">{r.name}</h4><p className="text-gray-400 text-[10px] font-bold uppercase mt-1">{r.date} • {r.city} • {r.distance}</p></div>
                   <button onClick={async () => await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'races', r.id))} className="p-4 text-red-200 bg-red-50 rounded-2xl hover:bg-red-100"><Trash2 size={18}/></button>
@@ -923,7 +934,7 @@ const PublicApp = ({ user }) => {
     });
   };
 
-  const sortedRaces = useMemo(() => races
+  const sortedRaces = useMemo(() => [...races]
     .filter(r => (selectedCity === 'Todas' || r.city === selectedCity))
     .sort((a, b) => new Date(a.date) - new Date(b.date)), [races, selectedCity]);
 
