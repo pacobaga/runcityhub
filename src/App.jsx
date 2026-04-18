@@ -5,7 +5,6 @@ import {
   AlertTriangle, Trophy, ChevronDown, Search, Bell, Loader2, X, Check, Trash2, Lock,
   Globe, CalendarDays, Zap, Settings, Map, Store, Menu as MenuIcon, ChevronLeft, Send, Briefcase, EyeOff, Play, Pause, Edit2, MessageCircle, Mail, Smartphone, LogIn, Share2, Download, Copy, Upload
 } from 'lucide-react';
-import html2canvas from 'https://esm.sh/html2canvas@1.4.1';
 
 // --- FIREBASE IMPORTS ---
 import { initializeApp } from 'firebase/app';
@@ -106,7 +105,6 @@ const handleLogoUpload = async (e, clubId) => {
 // COMPONENTE: PANEL DE CLUBES
 // ==========================================
 const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
-  // Blindaje por si el club aún no se carga o no existe
   if (!club) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center font-black text-petrol flex-col gap-4">
@@ -191,7 +189,16 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
   const downloadFlyer = async () => {
     if (!flyerRef.current) return;
     try {
-      const canvas = await html2canvas(flyerRef.current, { scale: 2, backgroundColor: '#1B4353', useCORS: true });
+      if (!window.html2canvas) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("Fallo al cargar generador gráfico."));
+          document.head.appendChild(script);
+        });
+      }
+      const canvas = await window.html2canvas(flyerRef.current, { scale: 2, backgroundColor: '#1B4353', useCORS: true });
       const image = canvas.toDataURL("image/png");
       const link = document.createElement('a');
       link.href = image;
@@ -199,7 +206,7 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
       link.click();
     } catch (error) {
       console.error("Error generating flyer", error);
-      alert("Hubo un error al generar la imagen.");
+      alert("Hubo un error al generar la imagen. Intenta de nuevo.");
     }
   };
 
@@ -1228,54 +1235,94 @@ const PublicApp = ({ user }) => {
            </form>
         </main>
       )}
-      
-      {/* INICIO DE SESIÓN PARA CLUBES */}
-      {view === 'club-login' && (
-        <div className="fixed inset-0 z-[600] flex justify-center p-4 md:p-10 bg-petrol/98 backdrop-blur-3xl animate-in fade-in duration-500 overflow-y-auto font-black text-left font-black font-black">
-           <div className="bg-white p-10 md:p-14 rounded-6xl shadow-2xl w-full max-w-md relative border-t-[30px] border-turquoise my-auto font-black font-black font-black font-black">
-              <button onClick={() => { window.location.hash=''; setView('home'); }} className="absolute top-6 right-6 p-4 text-petrol bg-gray-50 rounded-full hover:bg-red-50 transition shadow-lg active:scale-90 font-black font-black font-black font-black font-black"><X size={24}/></button>
-              <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 text-petrol leading-none font-black italic tracking-tighter font-black font-black font-black font-black font-black">PORTAL <br/> <span className="text-turquoise font-black font-black font-black font-black font-black font-black">ORGANIZADOR</span></h2>
-              
-              <div className="bg-palemint/50 p-4 rounded-2xl mb-8 flex items-start gap-3">
-                 <Info size={24} className="text-turquoise shrink-0 mt-1" />
-                 <p className="text-xs text-petrol leading-relaxed font-bold">Si tu club ya fue aprobado por nuestro equipo, ingresa creando tu contraseña <strong>usando el mismo correo</strong> con el que te registraste.</p>
-              </div>
 
+      {/* Ficha de Evento (Modal) */}
+      {selectedEvent && (
+        <div className="fixed inset-0 z-[500] bg-petrol/90 backdrop-blur-sm flex items-center justify-center p-4">
+           <div className="bg-white p-8 rounded-[3rem] max-w-sm w-full relative text-left shadow-2xl animate-in zoom-in duration-300">
+              <button onClick={() => setSelectedEvent(null)} className="absolute top-6 right-6 bg-gray-100 p-3 text-petrol hover:bg-red-50 hover:text-red-500 rounded-full transition-colors"><X size={20}/></button>
+              
+              <div className="text-[10px] uppercase font-black tracking-[0.3em] text-turquoise mb-2">{RUN_TYPES[selectedEvent.type]?.label || 'Evento'}</div>
+              <h3 className="text-3xl font-black italic uppercase text-petrol mb-1 leading-none tracking-tighter">{selectedEvent.club?.name || selectedEvent.organizerName}</h3>
+              <p className="text-xs font-bold text-gray-400 mb-8 uppercase tracking-widest">{selectedEvent.distance || 'Social Run'}</p>
+              
+              <div className="space-y-4 mb-8 bg-gray-50 p-6 rounded-4xl border border-gray-100">
+                 <div className="flex items-center gap-3"><CalendarDays size={18} className="text-mustard"/><span className="text-xs font-black uppercase text-petrol">{selectedEvent.isRecurring ? `TODOS LOS ${selectedEvent.day}` : selectedEvent.specificDate} • {selectedEvent.time} hrs</span></div>
+                 <div className="flex items-center gap-3"><MapPin size={18} className="text-mustard"/><span className="text-xs font-black uppercase text-petrol">{selectedEvent.zone} ({selectedEvent.city || 'CDMX'})</span></div>
+                 <div className="flex items-center gap-3"><Map size={18} className="text-mustard"/><span className="text-xs font-bold text-petrol">{selectedEvent.location || 'Punto de encuentro por definir'}</span></div>
+              </div>
+              
+              <button 
+                onClick={() => window.open(`https://maps.google.com/?q=$${encodeURIComponent(selectedEvent.location || selectedEvent.zone)}`, '_blank')} 
+                className="w-full bg-petrol text-mustard py-5 rounded-full font-black uppercase tracking-widest text-[11px] flex justify-center items-center gap-3 hover:bg-turquoise hover:text-white transition-colors shadow-xl active:scale-95"
+              >
+                <MapPin size={16}/> Abrir en Maps
+              </button>
+           </div>
+        </div>
+      )}
+
+      {/* BOTÓN FLOTANTE DE SOPORTE / CHATBOT */}
+      <div className="fixed bottom-6 right-6 z-[200]">
+        {isSupportOpen && (
+          <div className="absolute bottom-20 right-0 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100 p-4 animate-in slide-in-from-bottom-2 duration-200">
+            <h4 className="text-xs font-black uppercase tracking-widest text-petrol mb-4 border-b pb-2">Atención a Corredores</h4>
+            <div className="space-y-2">
+              <a href="https://wa.me/525500000000" target="_blank" rel="noreferrer" className="flex items-center gap-3 w-full p-3 bg-green-50 text-green-700 hover:bg-green-100 rounded-xl transition-colors font-bold text-sm">
+                <Smartphone size={18}/> WhatsApp
+              </a>
+              <a href="mailto:soporte@cityrunhub.mx" className="flex items-center gap-3 w-full p-3 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl transition-colors font-bold text-sm">
+                <Mail size={18}/> Correo
+              </a>
+            </div>
+          </div>
+        )}
+        <button 
+          onClick={() => setIsSupportOpen(!isSupportOpen)}
+          className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-xl transition-all hover:scale-110 active:scale-95 ${isSupportOpen ? 'bg-red-500' : 'bg-petrol'}`}
+        >
+          {isSupportOpen ? <X size={24} /> : <MessageCircle size={24} />}
+        </button>
+      </div>
+
+      {/* FOOTER */}
+      <footer className="bg-petrol text-white py-24 mt-auto rounded-t-6xl relative overflow-hidden px-8 text-center font-black shadow-[0_-50px_100px_-20px_rgba(27,67,83,0.1)] font-black font-black">
+        <div className="absolute inset-0 bg-white/5 opacity-5 pointer-events-none font-black"></div>
+        <div className="max-w-7xl mx-auto flex flex-col items-center gap-10 relative z-10 text-center font-black font-black font-black font-black font-black font-black">
+           <div className="text-5xl md:text-8xl font-black italic tracking-tighter text-mustard/20 uppercase leading-none select-none tracking-tighter font-black font-black font-black font-black font-black">RUN CITY HUB</div>
+           <nav className="flex flex-wrap justify-center gap-8 md:gap-14 text-base font-black uppercase tracking-[0.4em] text-white/60 font-bold font-black font-black font-black font-black font-black">
+              <button onClick={() => { window.location.hash=''; setView('home'); }} className="hover:text-mustard transition-colors font-black">Inicio</button>
+              <button onClick={() => { window.location.hash=''; setView('home'); setTimeout(() => document.getElementById('agenda')?.scrollIntoView({behavior:'smooth'}), 100); }} className="hover:text-mustard transition-colors font-black font-black font-black">Calendario</button>
+              <button onClick={() => { window.location.hash=''; setView('races'); }} className="hover:text-mustard transition-colors font-black font-black">Carreras</button>
+              <button onClick={() => { window.location.hash=''; setView('clubs'); }} className="hover:text-mustard transition-colors font-black font-black">Clubes</button>
+              <button onClick={() => { 
+                  const isApprovedClub = clubs.find(c => c.email === user?.email);
+                  if(isApprovedClub) setView('club-panel');
+                  else setView('club-login'); 
+              }} className="hover:text-mustard transition-colors font-black font-black">Portal Clubes</button>
+           </nav>
+           <div className="flex flex-col items-center gap-8 w-full pt-10 border-t border-white/5 font-black font-black font-black font-black font-black font-black font-black font-black">
+              <div className="flex gap-14 text-white/30 font-black font-black font-black font-black font-black">
+                 <a href="https://instagram.com/runcityhub" target="_blank" className="hover:text-mustard transition-all hover:scale-125 active:scale-90 font-black font-black font-black font-black font-black font-black"><Instagram size={48}/></a>
+              </div>
+              <p className="text-[10px] font-black text-white/20 tracking-[1.5em] uppercase italic font-bold font-black">MÉXICO • 2026</p>
+           </div>
+        </div>
+      </footer>
+
+      {/* LOGIN ADMIN (AHORA SE ACTIVA VIA URL HASH #admin) */}
+      {view === 'admin-login' && (
+        <div className="fixed inset-0 z-[600] flex justify-center p-4 md:p-10 bg-petrol/98 backdrop-blur-3xl animate-in fade-in duration-500 overflow-y-auto font-black text-left font-black font-black">
+           <div className="bg-white p-10 md:p-14 rounded-6xl shadow-2xl w-full max-w-md relative border-t-[30px] border-mustard my-auto font-black font-black font-black font-black">
+              <button onClick={() => { window.location.hash=''; setView('home'); }} className="absolute top-6 right-6 p-4 text-petrol bg-gray-50 rounded-full hover:bg-red-50 transition shadow-lg active:scale-90 font-black font-black font-black font-black font-black"><X size={24}/></button>
+              <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 text-petrol leading-none font-black italic tracking-tighter font-black font-black font-black font-black font-black">CENTRAL <br/> <span className="text-turquoise font-black font-black font-black font-black font-black font-black">ADMIN</span></h2>
               <form onSubmit={async (e) => {
                 e.preventDefault();
-                const email = e.target.email.value;
-                const password = e.target.pass.value;
-                const mode = e.nativeEvent.submitter.name; 
-                
-                try {
-                  if (mode === 'register') {
-                    const isApprovedClub = clubs.find(c => c.email === email);
-                    if (!isApprovedClub) {
-                      return alert("El correo no pertenece a ningún club aprobado. Si ya mandaste tu solicitud, espera nuestra confirmación.");
-                    }
-                    await createUserWithEmailAndPassword(auth, email, password);
-                    alert("Contraseña creada con éxito.");
-                  } else {
-                    await signInWithEmailAndPassword(auth, email, password);
-                  }
-                  setView('club-panel');
-                } catch(err) { 
-                  if(err.code === 'auth/email-already-in-use') {
-                    alert("Ya creaste una contraseña para este correo. Por favor haz clic en 'Iniciar Sesión'.");
-                  } else if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
-                    alert("Correo o contraseña incorrectos.");
-                  } else {
-                    alert("Error: " + err.message);
-                  }
-                }
-              }} className="space-y-6 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black">
-                 <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black">Email del Club Registrado</label><input required name="email" type="email" placeholder="correo@club.com" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
+                try { await signInWithEmailAndPassword(auth, e.target.email.value, e.target.pass.value); setView('admin-panel'); } catch(e) { alert("Acceso denegado."); }
+              }} className="space-y-6 mt-10 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black">
+                 <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black">Email</label><input required name="email" type="email" placeholder="admin@runcityhub.mx" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
                  <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black">Contraseña</label><input required name="pass" type="password" placeholder="••••••••" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
-                 
-                 <div className="flex flex-col gap-3 pt-4">
-                    <button type="submit" name="login" className="w-full bg-petrol text-white py-6 rounded-4xl font-black text-lg uppercase italic shadow-lg active:scale-95 transition-all">Iniciar Sesión</button>
-                    <button type="submit" name="register" className="w-full bg-white border-2 border-gray-100 text-petrol py-6 rounded-4xl font-black text-lg uppercase italic active:scale-95 hover:bg-gray-50 transition-all">Crear mi contraseña</button>
-                 </div>
+                 <button className="w-full bg-petrol text-mustard py-8 rounded-4xl font-black text-2xl uppercase italic shadow-2xl active:scale-95 transition-all mt-6 font-black italic font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black">Entrar</button>
               </form>
            </div>
         </div>
