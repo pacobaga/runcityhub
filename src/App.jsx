@@ -1304,6 +1304,58 @@ const PublicApp = ({ user }) => {
         </div>
       </footer>
 
+      {/* INICIO DE SESIÓN PARA CLUBES */}
+      {view === 'club-login' && (
+        <div className="fixed inset-0 z-[600] flex justify-center p-4 md:p-10 bg-petrol/98 backdrop-blur-3xl animate-in fade-in duration-500 overflow-y-auto font-black text-left font-black font-black">
+           <div className="bg-white p-10 md:p-14 rounded-6xl shadow-2xl w-full max-w-md relative border-t-[30px] border-turquoise my-auto font-black font-black font-black font-black">
+              <button onClick={() => { window.location.hash=''; setView('home'); }} className="absolute top-6 right-6 p-4 text-petrol bg-gray-50 rounded-full hover:bg-red-50 transition shadow-lg active:scale-90 font-black font-black font-black font-black font-black"><X size={24}/></button>
+              <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 text-petrol leading-none font-black italic tracking-tighter font-black font-black font-black font-black font-black">PORTAL <br/> <span className="text-turquoise font-black font-black font-black font-black font-black font-black">ORGANIZADOR</span></h2>
+              
+              <div className="bg-palemint/50 p-4 rounded-2xl mb-8 flex items-start gap-3">
+                 <Info size={24} className="text-turquoise shrink-0 mt-1" />
+                 <p className="text-xs text-petrol leading-relaxed font-bold">Si tu club ya fue aprobado por nuestro equipo, ingresa creando tu contraseña <strong>usando el mismo correo</strong> con el que te registraste.</p>
+              </div>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const email = e.target.email.value;
+                const password = e.target.pass.value;
+                const mode = e.nativeEvent.submitter.name; 
+                
+                try {
+                  if (mode === 'register') {
+                    const isApprovedClub = clubs.find(c => c.email === email);
+                    if (!isApprovedClub) {
+                      return alert("El correo no pertenece a ningún club aprobado. Si ya mandaste tu solicitud, espera nuestra confirmación.");
+                    }
+                    await createUserWithEmailAndPassword(auth, email, password);
+                    alert("Contraseña creada con éxito.");
+                  } else {
+                    await signInWithEmailAndPassword(auth, email, password);
+                  }
+                  setView('club-panel');
+                } catch(err) { 
+                  if(err.code === 'auth/email-already-in-use') {
+                    alert("Ya creaste una contraseña para este correo. Por favor haz clic en 'Iniciar Sesión'.");
+                  } else if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+                    alert("Correo o contraseña incorrectos.");
+                  } else {
+                    alert("Error: " + err.message);
+                  }
+                }
+              }} className="space-y-6 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black">
+                 <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black">Email del Club Registrado</label><input required name="email" type="email" placeholder="correo@club.com" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
+                 <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black">Contraseña</label><input required name="pass" type="password" placeholder="••••••••" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
+                 
+                 <div className="flex flex-col gap-3 pt-4">
+                    <button type="submit" name="login" className="w-full bg-petrol text-white py-6 rounded-4xl font-black text-lg uppercase italic shadow-lg active:scale-95 transition-all">Iniciar Sesión</button>
+                    <button type="submit" name="register" className="w-full bg-white border-2 border-gray-100 text-petrol py-6 rounded-4xl font-black text-lg uppercase italic active:scale-95 hover:bg-gray-50 transition-all">Crear mi contraseña</button>
+                 </div>
+              </form>
+           </div>
+        </div>
+      )}
+
       {/* LOGIN ADMIN */}
       {view === 'admin-login' && (
         <div className="fixed inset-0 z-[600] flex justify-center p-4 md:p-10 bg-petrol/98 backdrop-blur-3xl animate-in fade-in duration-500 overflow-y-auto font-black text-left font-black font-black">
