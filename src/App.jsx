@@ -82,7 +82,6 @@ const getMonday = (d) => {
   return monday;
 };
 
-// Función global para subir logos a Firestore en Base64
 const handleLogoUpload = async (e, clubId) => {
   const file = e.target.files[0];
   if(!file) return;
@@ -105,6 +104,35 @@ const handleLogoUpload = async (e, clubId) => {
 // COMPONENTE: PANEL DE CLUBES
 // ==========================================
 const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
+  const [activeTab, setActiveTab] = useState('events');
+  const [newEvent, setNewEvent] = useState({ 
+    day: 'Lunes', specificDate: '', time: '07:00', 
+    zone: '', type: 'SR', category: 'Entrenamiento', location: '', isRecurring: true 
+  });
+  
+  const [newRace, setNewRace] = useState({ name: '', date: '', distance: '', zone: '', link: '', city: club?.city || '' });
+
+  const [selectedFlyerEvent, setSelectedFlyerEvent] = useState(null);
+  const flyerRef = useRef(null);
+
+  const myEvents = useMemo(() => {
+    if (!club) return [];
+    return events.filter(e => e.clubId === club.id || e.organizerEmail === club.email)
+                 .sort((a,b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0));
+  }, [events, club]);
+
+  const myRaces = useMemo(() => {
+    if (!club) return [];
+    return races.filter(r => r.clubId === club.id)
+                .sort((a,b) => new Date(a.date) - new Date(b.date));
+  }, [races, club]);
+
+  const clubZones = useMemo(() => {
+    if (!club) return [];
+    return allZones.filter(z => z.city === club.city);
+  }, [allZones, club]);
+
+  // Early return protegido (Después de los Hooks)
   if (!club) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center font-black text-petrol flex-col gap-4">
@@ -114,30 +142,6 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
       </div>
     );
   }
-
-  const [activeTab, setActiveTab] = useState('events');
-  const [newEvent, setNewEvent] = useState({ 
-    day: 'Lunes', specificDate: '', time: '07:00', 
-    zone: '', type: 'SR', category: 'Entrenamiento', location: '', isRecurring: true 
-  });
-  
-  const [newRace, setNewRace] = useState({ name: '', date: '', distance: '', zone: '', link: '', city: club.city });
-
-  // Estados para el Generador de Flyers
-  const [selectedFlyerEvent, setSelectedFlyerEvent] = useState(null);
-  const flyerRef = useRef(null);
-
-  const myEvents = useMemo(() => {
-    return events.filter(e => e.clubId === club.id || e.organizerEmail === club.email)
-                 .sort((a,b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0));
-  }, [events, club]);
-
-  const myRaces = useMemo(() => {
-    return races.filter(r => r.clubId === club.id)
-                .sort((a,b) => new Date(a.date) - new Date(b.date));
-  }, [races, club]);
-
-  const clubZones = useMemo(() => allZones.filter(z => z.city === club.city), [allZones, club.city]);
 
   const handleToggleEvent = async (ev) => {
     const newStatus = ev.status === 'paused' ? 'active' : 'paused';
@@ -159,7 +163,6 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
         status: 'active', 
         createdAt: new Date().toISOString() 
       };
-      
       if(eventData.isRecurring) delete eventData.specificDate;
       else delete eventData.day;
 
@@ -194,7 +197,7 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
           const script = document.createElement('script');
           script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
           script.onload = () => resolve();
-          script.onerror = () => reject(new Error("Fallo al cargar generador gráfico."));
+          script.onerror = () => reject(new Error("Fallo de red"));
           document.head.appendChild(script);
         });
       }
@@ -202,18 +205,17 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
       const image = canvas.toDataURL("image/png");
       const link = document.createElement('a');
       link.href = image;
-      link.download = `Flyer_${selectedFlyerEvent.organizerName}_${selectedFlyerEvent.zone}.png`;
+      link.download = `Flyer_${selectedFlyerEvent.organizerName}.png`;
       link.click();
     } catch (error) {
-      console.error("Error generating flyer", error);
-      alert("Hubo un error al generar la imagen. Intenta de nuevo.");
+      alert("Hubo un error al generar la imagen. Revisa tu conexión a internet.");
     }
   };
 
   const copyCaption = () => {
     const text = `¡Nos vemos en la pista! ⚡\nÚnete a nuestra próxima sesión.\n\n📍 Toda la info y más eventos en @runcityhub.mx\n\n#RunCityHub #RunningMexico #SocialRun`;
     navigator.clipboard.writeText(text);
-    alert("Texto copiado. ¡Listo para pegarlo en tu Historia o Post de Instagram!");
+    alert("Texto copiado. ¡Listo para pegarlo en Instagram!");
   };
 
   return (
@@ -270,7 +272,6 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
                  </div>
 
                  <form onSubmit={handleAddEvent} className="space-y-4 font-black">
-                   
                    <div className="grid grid-cols-2 gap-2">
                      <select className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none text-xs" value={newEvent.category} onChange={e => setNewEvent({...newEvent, category: e.target.value})}>
                        {EVENT_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
@@ -295,7 +296,6 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
                       <option value="">Selecciona tu zona...</option>
                       {clubZones.map(z => <option key={z.id || z.name} value={z.name}>{z.name}</option>)}
                    </select>
-                   
                    <input required placeholder="Punto de encuentro (Ej. Fuente de Cibeles)" className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none shadow-inner" value={newEvent.location} onChange={e => setNewEvent({...newEvent, location: e.target.value})} />
                    
                    <button className="w-full bg-turquoise text-white py-5 rounded-4xl font-black text-xs uppercase italic hover:bg-teal-500 transition-colors shadow-lg active:scale-95">Publicar Sesión</button>
@@ -354,7 +354,6 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
                     <div className="w-32 h-32 bg-gray-100 rounded-full border-4 border-white shadow-lg overflow-hidden flex items-center justify-center text-gray-400">
                        {club.logoUrl ? <img src={club.logoUrl} className="w-full h-full object-cover" /> : <Users size={40} />}
                     </div>
-                    {/* Botón para subir logo */}
                     <label className="absolute bottom-0 right-0 p-3 bg-mustard text-petrol rounded-full cursor-pointer shadow-lg hover:scale-110 transition-transform" title="Cambiar Logo">
                       <input type="file" accept="image/*" className="hidden" onChange={(e) => handleLogoUpload(e, club.id)} />
                       <Upload size={18} />
@@ -377,7 +376,6 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
                           if(s) await updateDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'clubs', club.id), { social: s });
                       }} className="p-1.5 text-gray-400 hover:text-petrol"><Edit2 size={14}/></button>
                     </div>
-                    
                     <p className="text-gray-400 font-bold uppercase text-[11px] tracking-widest mt-2">{club.city}</p>
                   </div>
                </div>
@@ -397,14 +395,12 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
            <div className="bg-white p-8 rounded-[3rem] max-w-4xl w-full flex flex-col md:flex-row gap-10 relative animate-in zoom-in duration-300 shadow-2xl">
               <button onClick={() => setSelectedFlyerEvent(null)} className="absolute top-6 right-6 p-3 text-gray-400 bg-gray-50 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors z-10"><X size={20}/></button>
               
-              {/* Contenedor del Canvas (Previsualización de la Historia) */}
               <div className="flex-1 flex justify-center bg-gray-100 rounded-3xl p-4 overflow-hidden">
                 <div 
                   ref={flyerRef}
                   className="w-[360px] h-[640px] bg-petrol relative flex flex-col justify-center items-center shadow-lg"
                   style={{ transform: 'scale(0.85)', transformOrigin: 'top center' }}
                 >
-                  {/* Elementos gráficos de fondo */}
                   <div className="absolute top-0 right-0 w-64 h-64 bg-turquoise rounded-full blur-3xl opacity-20 -translate-y-1/2 translate-x-1/4"></div>
                   <div className="absolute bottom-0 left-0 w-64 h-64 bg-mustard rounded-full blur-3xl opacity-10 translate-y-1/4 -translate-x-1/4"></div>
 
@@ -440,7 +436,6 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
                     </div>
                   </div>
 
-                  {/* Logo Brand en el Flyer */}
                   <div className="absolute bottom-10 flex flex-col items-center opacity-50">
                      <span className="text-[10px] text-white font-black tracking-[0.4em] uppercase mb-2">RUN CITY HUB</span>
                      <div className="w-10 h-1 border-t-2 border-turquoise"></div>
@@ -448,17 +443,16 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
                 </div>
               </div>
 
-              {/* Controles de Acción */}
               <div className="flex-1 flex flex-col justify-center space-y-6">
                  <div>
                     <h3 className="text-3xl font-black uppercase italic tracking-tighter text-petrol leading-none mb-2">Comparte <br/><span className="text-turquoise">tu sesión.</span></h3>
-                    <p className="text-gray-400 text-sm font-bold">Hemos generado un flyer optimizado para Historias de Instagram con la información de tu evento.</p>
+                    <p className="text-gray-400 text-sm font-bold">Hemos generado un flyer optimizado para Historias de Instagram.</p>
                  </div>
 
                  <div className="space-y-4">
                     <div className="p-5 bg-palemint/50 rounded-3xl border border-turquoise/20">
                       <h4 className="text-[11px] uppercase tracking-widest text-petrol mb-1">Paso 1</h4>
-                      <p className="text-xs text-gray-500 font-bold mb-4">Descarga la imagen a tu dispositivo para subirla a tus historias.</p>
+                      <p className="text-xs text-gray-500 font-bold mb-4">Descarga la imagen a tu dispositivo.</p>
                       <button onClick={downloadFlyer} className="w-full py-4 bg-petrol text-white rounded-full text-xs uppercase italic font-black shadow-lg hover:bg-turquoise hover:text-petrol transition-all flex items-center justify-center gap-2 active:scale-95">
                         <Download size={16}/> Descargar Imagen
                       </button>
@@ -466,9 +460,9 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
 
                     <div className="p-5 bg-mustard/10 rounded-3xl border border-mustard/20">
                       <h4 className="text-[11px] uppercase tracking-widest text-petrol mb-1">Paso 2</h4>
-                      <p className="text-xs text-gray-500 font-bold mb-4">Copia el texto sugerido (incluye nuestra etiqueta para repostearte).</p>
+                      <p className="text-xs text-gray-500 font-bold mb-4">Copia el texto (incluye nuestra etiqueta).</p>
                       <button onClick={copyCaption} className="w-full py-4 bg-white border-2 border-gray-100 text-petrol rounded-full text-xs uppercase italic font-black shadow-sm hover:border-mustard transition-all flex items-center justify-center gap-2 active:scale-95">
-                        <Copy size={16}/> Copiar Texto (Caption)
+                        <Copy size={16}/> Copiar Texto
                       </button>
                     </div>
                  </div>
@@ -1253,7 +1247,7 @@ const PublicApp = ({ user }) => {
               </div>
               
               <button 
-                onClick={() => window.open(`https://maps.google.com/?q=$${encodeURIComponent(selectedEvent.location || selectedEvent.zone)}`, '_blank')} 
+                onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedEvent.location || selectedEvent.zone)}`, '_blank')} 
                 className="w-full bg-petrol text-mustard py-5 rounded-full font-black uppercase tracking-widest text-[11px] flex justify-center items-center gap-3 hover:bg-turquoise hover:text-white transition-colors shadow-xl active:scale-95"
               >
                 <MapPin size={16}/> Abrir en Maps
@@ -1310,7 +1304,7 @@ const PublicApp = ({ user }) => {
         </div>
       </footer>
 
-      {/* LOGIN ADMIN (AHORA SE ACTIVA VIA URL HASH #admin) */}
+      {/* LOGIN ADMIN */}
       {view === 'admin-login' && (
         <div className="fixed inset-0 z-[600] flex justify-center p-4 md:p-10 bg-petrol/98 backdrop-blur-3xl animate-in fade-in duration-500 overflow-y-auto font-black text-left font-black font-black">
            <div className="bg-white p-10 md:p-14 rounded-6xl shadow-2xl w-full max-w-md relative border-t-[30px] border-mustard my-auto font-black font-black font-black font-black">
