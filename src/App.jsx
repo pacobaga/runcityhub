@@ -674,6 +674,7 @@ const AdminPanel = ({ user, onClose }) => {
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      {/* BOTÓN PARA GENERAR FLYER AÑADIDO PARA EL ADMIN */}
                       <button onClick={() => setSelectedFlyerEvent(ev)} className="p-3 bg-blue-50 text-blue-500 rounded-2xl hover:bg-blue-100 transition-colors" title="Generar Flyer IG"><Share2 size={20}/></button>
                       <button onClick={() => handleToggleEvent(ev)} className={`p-3 rounded-2xl ${ev.status === 'paused' ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'}`}>{ev.status === 'paused' ? <Play size={20}/> : <Pause size={20}/>}</button>
                       <button onClick={async () => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events', ev.id)) }} className="p-3 bg-red-50 text-red-300 rounded-2xl hover:bg-red-100 transition-colors"><Trash2 size={20}/></button>
@@ -1061,8 +1062,8 @@ const PublicApp = ({ user }) => {
     <div className="min-h-screen bg-white text-petrol font-sans flex flex-col transition-all text-center font-black overflow-x-hidden relative">
       
       <header className="bg-white/95 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-[100] px-6 py-5 shadow-sm font-black font-black">
-        <div className="max-w-7xl mx-auto flex items-center justify-between font-black">
-          <div className="flex items-center cursor-pointer group font-black" onClick={() => { window.location.hash=''; setView('home'); }}>
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-8 font-black w-full">
+          <div className="flex items-center cursor-pointer group font-black shrink-0" onClick={() => { window.location.hash=''; setView('home'); }}>
              <div className="w-11 h-11 md:w-14 md:h-14 bg-white rounded-2xl flex items-center justify-center mr-4 shadow-xl overflow-hidden border border-gray-100 logo-shadow group-hover:rotate-12 transition-transform font-black">
                <img src="/cityrunhublogo.png" className="w-full h-full object-contain p-1.5 font-black" alt="Logo" />
              </div>
@@ -1098,8 +1099,8 @@ const PublicApp = ({ user }) => {
         <main className="animate-in fade-in duration-1000 flex-1 font-black text-left">
            <section className="max-w-7xl mx-auto px-6 pt-16 md:pt-32 pb-32 flex flex-col lg:flex-row items-center gap-20 text-center lg:text-left font-black">
               <div className="flex-1 font-black">
-                 <h1 className="hero-title mb-10 leading-[0.8] font-black italic tracking-tighter font-black">NO CORRAS <br /> SOLO, <br /><span className="text-turquoise font-black italic font-black">CORRE EN EQUIPO.</span></h1>
-                 <p className="text-xl md:text-2xl text-gray-400 font-medium italic mb-14 max-w-xl mx-auto lg:mx-0 leading-relaxed text-left font-black font-black">La plataforma definitiva para el corredor urbano.</p>
+                 <h1 className="text-6xl md:text-8xl mb-10 leading-[0.8] font-black italic tracking-tighter text-petrol">TU HUB LOCAL <br /><span className="text-turquoise">DE RUNNING.</span></h1>
+                 <p className="text-xl md:text-2xl text-gray-400 font-medium italic mb-14 max-w-xl mx-auto lg:mx-0 leading-relaxed text-left font-black">Conecta con tu ciudad. Descubre sesiones y clubes que se ajusten a tu zona y horario.</p>
                  <div className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start font-black">
                     <button onClick={() => document.getElementById('agenda')?.scrollIntoView({behavior:'smooth'})} className="bg-petrol text-mustard px-16 py-7 rounded-6xl font-black text-2xl shadow-[0_35px_60px_-15px_rgba(27,67,83,0.3)] hover:scale-105 transition-all uppercase italic active:scale-95 font-black">Ver Calendario</button>
                     <button onClick={() => setView('register')} className="bg-white border-4 border-gray-100 text-petrol px-16 py-7 rounded-6xl font-black text-2xl hover:border-mustard transition-all uppercase italic active:scale-95 font-black">Registrar Club</button>
