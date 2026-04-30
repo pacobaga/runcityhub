@@ -132,7 +132,6 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
     return allZones.filter(z => z.city === club.city);
   }, [allZones, club]);
 
-  // Early return protegido (Después de los Hooks)
   if (!club) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center font-black text-petrol flex-col gap-4">
@@ -163,6 +162,7 @@ const ClubPanel = ({ user, club, events, races, allZones, onClose }) => {
         status: 'active', 
         createdAt: new Date().toISOString() 
       };
+      
       if(eventData.isRecurring) delete eventData.specificDate;
       else delete eventData.day;
 
@@ -500,6 +500,10 @@ const AdminPanel = ({ user, onClose }) => {
     city: isMasterAdmin ? 'CDMX' : managerCity, zone: '', type: 'SR', category: 'Entrenamiento', location: '', isRecurring: true 
   });
 
+  // Estados para el Generador de Flyers de Admin
+  const [selectedFlyerEvent, setSelectedFlyerEvent] = useState(null);
+  const flyerRef = useRef(null);
+
   useEffect(() => {
     if (!user || userRoleInfo.role === 'none') return;
     const unsub = [
@@ -535,7 +539,7 @@ const AdminPanel = ({ user, onClose }) => {
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-10 font-black text-petrol text-center">
         <AlertTriangle size={64} className="text-red-500 mb-6" />
         <h2 className="text-4xl uppercase italic tracking-tighter mb-4">Acceso Denegado</h2>
-        <p className="text-gray-400 mb-8 max-w-md">Tu cuenta no tiene permisos de administrador del sistema. Si eres un club registrado, por favor ingresa a través del "Portal Clubes".</p>
+        <p className="text-gray-400 mb-8 max-w-md">Tu cuenta no tiene permisos de administrador del sistema.</p>
         <button onClick={async () => { await signOut(auth); onClose(); }} className="bg-petrol text-mustard px-10 py-4 rounded-full uppercase text-xs hover:scale-105 active:scale-95 transition-transform">Volver al Inicio</button>
       </div>
     );
@@ -570,6 +574,35 @@ const AdminPanel = ({ user, onClose }) => {
     if(!newCity) return;
     await addDoc(collection(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'cities'), { name: newCity });
     setNewCity('');
+  };
+
+  const downloadFlyer = async () => {
+    if (!flyerRef.current) return;
+    try {
+      if (!window.html2canvas) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("Fallo de red"));
+          document.head.appendChild(script);
+        });
+      }
+      const canvas = await window.html2canvas(flyerRef.current, { scale: 2, backgroundColor: '#1B4353', useCORS: true });
+      const image = canvas.toDataURL("image/png");
+      const link = document.createElement('a');
+      link.href = image;
+      link.download = `Flyer_Admin_${selectedFlyerEvent.organizerName}.png`;
+      link.click();
+    } catch (error) {
+      alert("Hubo un error al generar la imagen. Revisa tu conexión a internet.");
+    }
+  };
+
+  const copyCaption = () => {
+    const text = `¡Nos vemos en la pista! ⚡\nÚnete a nuestra próxima sesión.\n\n📍 Toda la info y más eventos en @runcityhub.mx\n\n#RunCityHub #RunningMexico #SocialRun`;
+    navigator.clipboard.writeText(text);
+    alert("Texto copiado. ¡Listo para pegarlo en Instagram!");
   };
 
   return (
@@ -641,6 +674,7 @@ const AdminPanel = ({ user, onClose }) => {
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      <button onClick={() => setSelectedFlyerEvent(ev)} className="p-3 bg-blue-50 text-blue-500 rounded-2xl hover:bg-blue-100 transition-colors" title="Generar Flyer IG"><Share2 size={20}/></button>
                       <button onClick={() => handleToggleEvent(ev)} className={`p-3 rounded-2xl ${ev.status === 'paused' ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'}`}>{ev.status === 'paused' ? <Play size={20}/> : <Pause size={20}/>}</button>
                       <button onClick={async () => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', FIREBASE_APP_ID, 'public', 'data', 'events', ev.id)) }} className="p-3 bg-red-50 text-red-300 rounded-2xl hover:bg-red-100 transition-colors"><Trash2 size={20}/></button>
                     </div>
@@ -846,6 +880,88 @@ const AdminPanel = ({ user, onClose }) => {
           </div>
         )}
       </main>
+
+      {/* MODAL GENERADOR DE FLYER IG STORIES - PANEL ADMIN */}
+      {selectedFlyerEvent && (
+        <div className="fixed inset-0 z-[800] bg-petrol/95 backdrop-blur-md flex items-center justify-center p-4">
+           <div className="bg-white p-8 rounded-[3rem] max-w-4xl w-full flex flex-col md:flex-row gap-10 relative animate-in zoom-in duration-300 shadow-2xl">
+              <button onClick={() => setSelectedFlyerEvent(null)} className="absolute top-6 right-6 p-3 text-gray-400 bg-gray-50 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors z-10"><X size={20}/></button>
+              
+              <div className="flex-1 flex justify-center bg-gray-100 rounded-3xl p-4 overflow-hidden">
+                <div 
+                  ref={flyerRef}
+                  className="w-[360px] h-[640px] bg-petrol relative flex flex-col justify-center items-center shadow-lg"
+                  style={{ transform: 'scale(0.85)', transformOrigin: 'top center' }}
+                >
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-turquoise rounded-full blur-3xl opacity-20 -translate-y-1/2 translate-x-1/4"></div>
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-mustard rounded-full blur-3xl opacity-10 translate-y-1/4 -translate-x-1/4"></div>
+
+                  <div className="bg-white rounded-[2.5rem] w-[85%] p-8 relative z-10 shadow-2xl border-b-8 border-mustard">
+                    <div className="text-[10px] uppercase font-black tracking-[0.3em] text-turquoise mb-2 leading-none">
+                      {selectedFlyerEvent.category || 'Evento'}
+                    </div>
+                    <h3 className="text-3xl font-black italic uppercase text-petrol mb-2 leading-[0.9] tracking-tighter break-words">
+                      {selectedFlyerEvent.organizerName}
+                    </h3>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-4 mb-6">
+                      {RUN_TYPES[selectedFlyerEvent.type]?.label || 'Social Run'}
+                    </p>
+                    
+                    <div className="space-y-5">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-gray-50 rounded-xl text-mustard"><CalendarDays size={20}/></div>
+                        <span className="text-xs font-black uppercase text-petrol">
+                          {selectedFlyerEvent.isRecurring ? `LOS ${selectedFlyerEvent.day}` : selectedFlyerEvent.specificDate} <br/> 
+                          <span className="text-gray-400 font-bold">{selectedFlyerEvent.time} HRS</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-gray-50 rounded-xl text-mustard"><MapPin size={20}/></div>
+                        <span className="text-xs font-black uppercase text-petrol">{selectedFlyerEvent.zone} <br/> 
+                          <span className="text-gray-400 font-bold">{selectedFlyerEvent.city}</span>
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 bg-gray-50 rounded-xl text-mustard"><Map size={20}/></div>
+                        <span className="text-[10px] font-bold text-petrol pt-1 leading-tight">{selectedFlyerEvent.location || 'Punto de encuentro'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="absolute bottom-10 flex flex-col items-center opacity-50">
+                     <span className="text-[10px] text-white font-black tracking-[0.4em] uppercase mb-2">RUN CITY HUB</span>
+                     <div className="w-10 h-1 border-t-2 border-turquoise"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 flex flex-col justify-center space-y-6">
+                 <div>
+                    <h3 className="text-3xl font-black uppercase italic tracking-tighter text-petrol leading-none mb-2">Comparte <br/><span className="text-turquoise">esta sesión.</span></h3>
+                    <p className="text-gray-400 text-sm font-bold">Herramienta de administrador para generar flyers instantáneos de cualquier club.</p>
+                 </div>
+
+                 <div className="space-y-4">
+                    <div className="p-5 bg-palemint/50 rounded-3xl border border-turquoise/20">
+                      <h4 className="text-[11px] uppercase tracking-widest text-petrol mb-1">Paso 1</h4>
+                      <p className="text-xs text-gray-500 font-bold mb-4">Descarga la imagen a tu dispositivo.</p>
+                      <button onClick={downloadFlyer} className="w-full py-4 bg-petrol text-white rounded-full text-xs uppercase italic font-black shadow-lg hover:bg-turquoise hover:text-petrol transition-all flex items-center justify-center gap-2 active:scale-95">
+                        <Download size={16}/> Descargar Imagen
+                      </button>
+                    </div>
+
+                    <div className="p-5 bg-mustard/10 rounded-3xl border border-mustard/20">
+                      <h4 className="text-[11px] uppercase tracking-widest text-petrol mb-1">Paso 2</h4>
+                      <p className="text-xs text-gray-500 font-bold mb-4">Copia el caption con los hashtags oficiales.</p>
+                      <button onClick={copyCaption} className="w-full py-4 bg-white border-2 border-gray-100 text-petrol rounded-full text-xs uppercase italic font-black shadow-sm hover:border-mustard transition-all flex items-center justify-center gap-2 active:scale-95">
+                        <Copy size={16}/> Copiar Texto
+                      </button>
+                    </div>
+                 </div>
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1304,7 +1420,25 @@ const PublicApp = ({ user }) => {
         </div>
       </footer>
 
-      {/* INICIO DE SESIÓN PARA CLUBES */}
+      {/* LOGIN ADMIN */}
+      {view === 'admin-login' && (
+        <div className="fixed inset-0 z-[600] flex justify-center p-4 md:p-10 bg-petrol/98 backdrop-blur-3xl animate-in fade-in duration-500 overflow-y-auto font-black text-left font-black font-black">
+           <div className="bg-white p-10 md:p-14 rounded-6xl shadow-2xl w-full max-w-md relative border-t-[30px] border-mustard my-auto font-black font-black font-black font-black">
+              <button onClick={() => { window.location.hash=''; setView('home'); }} className="absolute top-6 right-6 p-4 text-petrol bg-gray-50 rounded-full hover:bg-red-50 transition shadow-lg active:scale-90 font-black font-black font-black font-black font-black"><X size={24}/></button>
+              <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 text-petrol leading-none font-black italic tracking-tighter font-black font-black font-black font-black font-black">CENTRAL <br/> <span className="text-turquoise font-black font-black font-black font-black font-black font-black">ADMIN</span></h2>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                try { await signInWithEmailAndPassword(auth, e.target.email.value, e.target.pass.value); setView('admin-panel'); } catch(e) { alert("Acceso denegado."); }
+              }} className="space-y-6 mt-10 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black">
+                 <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black">Email</label><input required name="email" type="email" placeholder="admin@runcityhub.mx" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
+                 <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black">Contraseña</label><input required name="pass" type="password" placeholder="••••••••" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
+                 <button className="w-full bg-petrol text-mustard py-8 rounded-4xl font-black text-2xl uppercase italic shadow-2xl active:scale-95 transition-all mt-6 font-black italic font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black">Entrar</button>
+              </form>
+           </div>
+        </div>
+      )}
+
+      {/* LOGIN CLUBES */}
       {view === 'club-login' && (
         <div className="fixed inset-0 z-[600] flex justify-center p-4 md:p-10 bg-petrol/98 backdrop-blur-3xl animate-in fade-in duration-500 overflow-y-auto font-black text-left font-black font-black">
            <div className="bg-white p-10 md:p-14 rounded-6xl shadow-2xl w-full max-w-md relative border-t-[30px] border-turquoise my-auto font-black font-black font-black font-black">
@@ -1351,24 +1485,6 @@ const PublicApp = ({ user }) => {
                     <button type="submit" name="login" className="w-full bg-petrol text-white py-6 rounded-4xl font-black text-lg uppercase italic shadow-lg active:scale-95 transition-all">Iniciar Sesión</button>
                     <button type="submit" name="register" className="w-full bg-white border-2 border-gray-100 text-petrol py-6 rounded-4xl font-black text-lg uppercase italic active:scale-95 hover:bg-gray-50 transition-all">Crear mi contraseña</button>
                  </div>
-              </form>
-           </div>
-        </div>
-      )}
-
-      {/* LOGIN ADMIN */}
-      {view === 'admin-login' && (
-        <div className="fixed inset-0 z-[600] flex justify-center p-4 md:p-10 bg-petrol/98 backdrop-blur-3xl animate-in fade-in duration-500 overflow-y-auto font-black text-left font-black font-black">
-           <div className="bg-white p-10 md:p-14 rounded-6xl shadow-2xl w-full max-w-md relative border-t-[30px] border-mustard my-auto font-black font-black font-black font-black">
-              <button onClick={() => { window.location.hash=''; setView('home'); }} className="absolute top-6 right-6 p-4 text-petrol bg-gray-50 rounded-full hover:bg-red-50 transition shadow-lg active:scale-90 font-black font-black font-black font-black font-black"><X size={24}/></button>
-              <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 text-petrol leading-none font-black italic tracking-tighter font-black font-black font-black font-black font-black">CENTRAL <br/> <span className="text-turquoise font-black font-black font-black font-black font-black font-black">ADMIN</span></h2>
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                try { await signInWithEmailAndPassword(auth, e.target.email.value, e.target.pass.value); setView('admin-panel'); } catch(e) { alert("Acceso denegado."); }
-              }} className="space-y-6 mt-10 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black">
-                 <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black">Email</label><input required name="email" type="email" placeholder="admin@runcityhub.mx" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
-                 <div className="space-y-2 font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black"><label className="text-[11px] font-black uppercase text-gray-400 font-black font-black font-black font-black font-black">Contraseña</label><input required name="pass" type="password" placeholder="••••••••" className="w-full p-6 bg-gray-50 rounded-4xl font-black text-petrol outline-none border border-gray-100 shadow-inner font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black" /></div>
-                 <button className="w-full bg-petrol text-mustard py-8 rounded-4xl font-black text-2xl uppercase italic shadow-2xl active:scale-95 transition-all mt-6 font-black italic font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black font-black">Entrar</button>
               </form>
            </div>
         </div>
